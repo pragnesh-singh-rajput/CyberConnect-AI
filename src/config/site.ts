@@ -1,10 +1,20 @@
-import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, MailPlus, LineChart, FileText } from 'lucide-react';
+
+import type { LucideProps } from 'lucide-react'; // For better typing if needed, but string keys are fine
+import { LayoutDashboard, Users, MailPlus, LineChart, FileText, Settings, UserCircle } from 'lucide-react';
+
+// Define a type for the icon names that we'll use as keys
+export type IconName = 
+  | 'LayoutDashboard' 
+  | 'Users' 
+  | 'FileText' 
+  | 'LineChart' 
+  | 'Settings' 
+  | 'UserCircle';
 
 export type NavItem = {
   title: string;
   href: string;
-  icon: LucideIcon;
+  iconName: IconName; // Changed from icon: LucideIcon to iconName: string
   disabled?: boolean;
 };
 
@@ -14,6 +24,7 @@ export type SiteConfig = {
   url: string;
   ogImage: string;
   mainNav: NavItem[];
+  secondaryNav?: NavItem[]; // Optional secondary nav for items like settings/profile
 };
 
 export const siteConfig: SiteConfig = {
@@ -25,22 +36,35 @@ export const siteConfig: SiteConfig = {
     {
       title: "Dashboard",
       href: "/",
-      icon: LayoutDashboard,
+      iconName: "LayoutDashboard",
     },
     {
       title: "Recruits",
       href: "/recruits",
-      icon: Users,
+      iconName: "Users",
     },
     {
       title: "Templates",
       href: "/templates",
-      icon: FileText,
+      iconName: "FileText",
     },
     {
       title: "Analytics",
       href: "/analytics",
-      icon: LineChart,
+      iconName: "LineChart",
     },
   ],
+  secondaryNav: [ 
+     {
+      title: "Settings",
+      href: "/settings",
+      iconName: "Settings",
+    },
+    {
+      title: "Profile",
+      href: "/profile",
+      iconName: "UserCircle",
+    },
+  ]
 };
+
