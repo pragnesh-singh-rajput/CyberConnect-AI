@@ -47,14 +47,14 @@ export function PersonalizeEmailDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
-  const apiUsage = useApiUsage(); // Use the API usage hook
+  const apiUsage = useApiUsage(); 
 
   useEffect(() => {
     if (recruiter) {
       const defaultTemplate = templates.find(t => t.isDefault) || templates[0];
       setSelectedTemplateId(defaultTemplate?.id || '');
       setPersonalizedSubject(defaultTemplate?.subject || 'Regarding an Opportunity');
-      setPersonalizedBody(''); // Clear body, to be generated
+      setPersonalizedBody(''); 
     }
     setCurrentSkills(userSkills.skills);
   }, [recruiter, templates, userSkills]);
@@ -114,7 +114,7 @@ export function PersonalizeEmailDialog({
       setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
       setPersonalizedBody(`Error generating email. Original template with basic replacements:\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
     } finally {
-      apiUsage.recordApiCall(); // Record the API call attempt
+      apiUsage.recordApiCall(); 
       setIsGenerating(false);
     }
   };
@@ -124,11 +124,34 @@ export function PersonalizeEmailDialog({
       toast({ title: 'Error', description: 'No email content to send.', variant: 'destructive' });
       return;
     }
+    if (!recruiter.email) {
+      toast({ title: 'Error', description: 'Recruiter email address is missing.', variant: 'destructive' });
+      return;
+    }
+
     setIsSending(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    onEmailSent(recruiter, personalizedSubject, personalizedBody);
-    setIsSending(false);
-    onOpenChange(false); 
+
+    try {
+      const mailtoSubject = encodeURIComponent(personalizedSubject);
+      const mailtoBody = encodeURIComponent(personalizedBody);
+      const mailtoLink = `mailto:${recruiter.email}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+      // Open the default email client
+      window.location.href = mailtoLink;
+
+      // Update recruiter status and log the email content locally
+      onEmailSent(recruiter, personalizedSubject, personalizedBody);
+      
+      // The toast is now more accurate as the user is being directed to their email client
+      // toast({ title: 'Email Client Opened', description: `Your email client should now be open with the email pre-filled for ${recruiter.recruiterName}.`, variant: 'default' });
+
+    } catch (error) {
+      console.error("Error preparing email for sending:", error);
+      toast({ title: 'Error', description: 'Could not prepare email for sending. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSending(false);
+      onOpenChange(false); // Close the dialog regardless of mailto success, as control is passed to mail client
+    }
   };
 
   if (!recruiter) return null;
