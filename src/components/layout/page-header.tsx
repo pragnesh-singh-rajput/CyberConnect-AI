@@ -7,7 +7,7 @@ interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   actions?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, actions, className, ...props }: PageHeaderProps) {
+export const PageHeader = React.memo(function PageHeader({ title, description, actions, className, ...props }: PageHeaderProps) {
   return (
     <div className={cn("mb-6 md:mb-8", className)} {...props}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -21,4 +21,6 @@ export function PageHeader({ title, description, actions, className, ...props }:
       </div>
     </div>
   );
-}
+});
+
+PageHeader.displayName = 'PageHeader';

@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import {
   flexRender,
   getCoreRowModel,
@@ -24,16 +25,42 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { useRecruiters } from '@/contexts/RecruitersContext';
 import { useTemplates } from '@/contexts/TemplatesContext';
 import { getColumns } from './recruits-table-columns';
-import { PersonalizeEmailDialog } from './personalize-email-dialog';
-import { ViewEmailDialog } from './view-email-dialog';
+// import { PersonalizeEmailDialog } from './personalize-email-dialog'; // Lazy loaded
+// import { ViewEmailDialog } from './view-email-dialog'; // Lazy loaded
 import type { Recruiter } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Card } from '@/components/ui/card'; // Added import for Card
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const PersonalizeEmailDialog = dynamic(() =>
+  import('./personalize-email-dialog').then((mod) => mod.PersonalizeEmailDialog),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    )
+  }
+);
+
+const ViewEmailDialog = dynamic(() =>
+  import('./view-email-dialog').then((mod) => mod.ViewEmailDialog),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    )
+  }
+);
+
 
 export function RecruitersTable() {
   const { recruiters, updateRecruiter, deleteRecruiter } = useRecruiters();
@@ -229,21 +256,25 @@ export function RecruitersTable() {
         </div>
       </div>
 
-      <PersonalizeEmailDialog
-        recruiter={selectedRecruiter}
-        templates={templates}
-        userSkills={userSkills}
-        isOpen={isPersonalizeDialogOpen}
-        onOpenChange={setIsPersonalizeDialogOpen}
-        onEmailSent={handleEmailSent}
-        onUpdateUserSkills={updateGlobalUserSkills}
-      />
+      {isPersonalizeDialogOpen && selectedRecruiter && (
+        <PersonalizeEmailDialog
+          recruiter={selectedRecruiter}
+          templates={templates}
+          userSkills={userSkills}
+          isOpen={isPersonalizeDialogOpen}
+          onOpenChange={setIsPersonalizeDialogOpen}
+          onEmailSent={handleEmailSent}
+          onUpdateUserSkills={updateGlobalUserSkills}
+        />
+      )}
       
-      <ViewEmailDialog
-        recruiter={selectedRecruiter}
-        isOpen={isViewEmailDialogOpen}
-        onOpenChange={setIsViewEmailDialogOpen}
-      />
+      {isViewEmailDialogOpen && selectedRecruiter && (
+        <ViewEmailDialog
+          recruiter={selectedRecruiter}
+          isOpen={isViewEmailDialogOpen}
+          onOpenChange={setIsViewEmailDialogOpen}
+        />
+      )}
 
       {recruiterToDelete && (
         <AlertDialog open={!!recruiterToDelete} onOpenChange={() => setRecruiterToDelete(null)}>
@@ -266,4 +297,3 @@ export function RecruitersTable() {
     </div>
   );
 }
-

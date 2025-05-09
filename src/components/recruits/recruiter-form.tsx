@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import React from 'react'; // Import React for React.memo
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -36,7 +37,7 @@ interface RecruiterFormProps {
   isSubmitting?: boolean;
 }
 
-export function RecruiterForm({ initialData, onSubmit, isSubmitting }: RecruiterFormProps) {
+export const RecruiterForm = React.memo(function RecruiterForm({ initialData, onSubmit, isSubmitting }: RecruiterFormProps) {
   const form = useForm<RecruiterFormValues>({
     resolver: zodResolver(recruiterFormSchema),
     defaultValues: {
@@ -153,4 +154,6 @@ export function RecruiterForm({ initialData, onSubmit, isSubmitting }: Recruiter
       </Form>
     </Card>
   );
-}
+});
+
+RecruiterForm.displayName = 'RecruiterForm'; // Good practice for React.memo components

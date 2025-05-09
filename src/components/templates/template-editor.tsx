@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Import React for React.memo
 import type { EmailTemplate, UserSkills } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ interface TemplateEditorProps {
   onSaveSkills: (skills: string) => void;
 }
 
-export function TemplateEditor({ template, userSkills, onSaveTemplate, onSaveSkills }: TemplateEditorProps) {
+export const TemplateEditor = React.memo(function TemplateEditor({ template, userSkills, onSaveTemplate, onSaveSkills }: TemplateEditorProps) {
   const [name, setName] = useState(template.name);
   const [subject, setSubject] = useState(template.subject);
   const [body, setBody] = useState(template.body);
@@ -130,4 +130,6 @@ export function TemplateEditor({ template, userSkills, onSaveTemplate, onSaveSki
       </div>
     </div>
   );
-}
+});
+
+TemplateEditor.displayName = 'TemplateEditor';
