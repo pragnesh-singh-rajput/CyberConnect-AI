@@ -5,16 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Users, MailPlus, LineChart, FileText, ArrowRight } from 'lucide-react';
-import { useRecruiters } from '@/contexts/RecruitersContext'; // Assuming context setup
+import { useRecruiters } from '@/contexts/RecruitersContext';
 
 export default function DashboardPage() {
-  const { recruiters, getSentEmailsCount, getRepliedEmailsCount } = useRecruiters ? useRecruiters() : { recruiters: [], getSentEmailsCount: () => 0, getRepliedEmailsCount: () => 0 };
+  const { recruiters, getSentEmailsCount, getRepliedEmailsCount } = useRecruiters();
 
   const totalRecruiters = recruiters.length;
-  const emailsSent = getSentEmailsCount ? getSentEmailsCount() : 0;
+  const emailsSent = getSentEmailsCount();
   // Mocked data for now
   const openRate = emailsSent > 0 ? 45.5 : 0; // Example open rate
-  const replyRate = getRepliedEmailsCount ? (emailsSent > 0 ? (getRepliedEmailsCount() / emailsSent) * 100 : 0) : 0;
+  const replyRate = emailsSent > 0 ? (getRepliedEmailsCount() / emailsSent) * 100 : 0;
 
 
   const stats = [

@@ -132,14 +132,13 @@ export const getColumns = (
                   View Sent Email
                 </DropdownMenuItem>
             )}
-            {/* Add Edit functionality later if needed
             <DropdownMenuItem asChild>
               <Link href={`/recruits/${recruiter.id}/edit`}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 Edit
               </Link>
             </DropdownMenuItem>
-            */}
+            <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive" onClick={() => onDelete(recruiter)}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete

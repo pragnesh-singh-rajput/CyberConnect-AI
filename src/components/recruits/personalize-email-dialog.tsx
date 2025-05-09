@@ -50,7 +50,7 @@ export function PersonalizeEmailDialog({
     if (recruiter) {
       const defaultTemplate = templates.find(t => t.isDefault) || templates[0];
       setSelectedTemplateId(defaultTemplate?.id || '');
-      setPersonalizedSubject(defaultTemplate?.subject || '');
+      setPersonalizedSubject(defaultTemplate?.subject || 'Regarding an Opportunity');
       setPersonalizedBody(''); // Clear body, to be generated
     }
     setCurrentSkills(userSkills.skills);
@@ -73,6 +73,9 @@ export function PersonalizeEmailDialog({
     }
 
     setIsGenerating(true);
+    setPersonalizedBody(''); // Clear previous generation
+    setPersonalizedSubject(template.subject); // Reset subject to template default before generation
+
     try {
       const input: PersonalizeEmailInput = {
         recruiterProfile: `${recruiter.recruiterName}, ${recruiter.title} at ${recruiter.companyName}. ${recruiter.notes || ''}`,
@@ -80,37 +83,34 @@ export function PersonalizeEmailDialog({
         template: `Subject: ${template.subject}\n\n${template.body}`,
       };
       
-      const result = await personalizeEmail(input);
+      const result = await personalizeEmail(input); // Expects { subject: string, body: string }
       
-      // Extract subject and body
-      const emailParts = result.personalizedEmail.split('\n\n');
-      const subjectLine = emailParts.find(part => part.toLowerCase().startsWith('subject:'));
-      
-      if (subjectLine) {
-        setPersonalizedSubject(subjectLine.substring('subject:'.length).trim());
-        setPersonalizedBody(emailParts.filter(part => !part.toLowerCase().startsWith('subject:')).join('\n\n'));
+      if (result && result.subject && result.body) {
+        setPersonalizedSubject(result.subject);
+        setPersonalizedBody(result.body);
+        toast({ title: 'Email Personalized', description: 'Review the generated email below.', variant: 'default' });
       } else {
-        // If AI doesn't return subject explicitly, use template subject and fill placeholders
-        let subj = template.subject
-          .replace(/{recruiter_name}/g, recruiter.recruiterName)
-          .replace(/{company_name}/g, recruiter.companyName)
-          .replace(/{your_name}/g, "Your Name"); // Placeholder for user name
-        setPersonalizedSubject(subj);
-        setPersonalizedBody(result.personalizedEmail);
+        // This case should ideally be handled by the fallback in the AI flow itself
+        // or by more specific error types from the flow.
+        console.error('AI did not return expected subject and body directly in dialog:', result);
+        setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
+        setPersonalizedBody(`[AI Personalization Issue - Using Fallback]\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
+        toast({ title: 'AI Issue', description: 'Used fallback content. Please review carefully.', variant: 'default' });
       }
 
-      toast({ title: 'Email Personalized', description: 'Review the generated email below.', variant: 'default' });
     } catch (error) {
       console.error('Error personalizing email:', error);
       toast({ title: 'AI Error', description: 'Failed to personalize email. Please try again.', variant: 'destructive' });
-      setPersonalizedBody(`Error generating email. Original template:\n\n${template.body}`);
+      // Fallback to a modified template body if AI fails catastrophically
+      setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
+      setPersonalizedBody(`Error generating email. Original template with basic replacements:\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleSendEmail = async () => {
-    if (!recruiter || !personalizedBody) {
+    if (!recruiter || !personalizedBody || !personalizedSubject) {
       toast({ title: 'Error', description: 'No email content to send.', variant: 'destructive' });
       return;
     }
@@ -164,7 +164,7 @@ export function PersonalizeEmailDialog({
             Generate Personalized Email
           </Button>
 
-          {personalizedBody && (
+          {(personalizedBody || isGenerating) && ( // Show fields even if body is empty during generation
             <>
               <div className="grid grid-cols-4 items-center gap-4">
                  <Label htmlFor="subject" className="text-right">Subject</Label>
@@ -173,6 +173,7 @@ export function PersonalizeEmailDialog({
                     value={personalizedSubject} 
                     onChange={(e) => setPersonalizedSubject(e.target.value)} 
                     className="col-span-3"
+                    placeholder="Personalized subject will appear here..."
                   />
               </div>
               <div className="grid grid-cols-4 items-start gap-4">
@@ -182,7 +183,7 @@ export function PersonalizeEmailDialog({
                   value={personalizedBody}
                   onChange={(e) => setPersonalizedBody(e.target.value)}
                   className="col-span-3 min-h-[200px]"
-                  placeholder="Personalized email content will appear here..."
+                  placeholder={isGenerating ? "Generating AI email..." : "Personalized email content will appear here..."}
                 />
               </div>
             </>
@@ -190,7 +191,7 @@ export function PersonalizeEmailDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>Cancel</Button>
-          <Button onClick={handleSendEmail} disabled={isSending || !personalizedBody || isGenerating}>
+          <Button onClick={handleSendEmail} disabled={isSending || !personalizedBody || !personalizedSubject || isGenerating}>
             {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             Send Email
           </Button>

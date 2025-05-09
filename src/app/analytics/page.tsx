@@ -24,7 +24,7 @@ const PIE_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--cha
 
 
 export default function AnalyticsPage() {
-  const { recruiters, getSentEmailsCount, getRepliedEmailsCount } = useRecruiters ? useRecruiters() : { recruiters: [], getSentEmailsCount: () => 0, getRepliedEmailsCount: () => 0 };
+  const { recruiters, getSentEmailsCount, getRepliedEmailsCount } = useRecruiters();
 
   const totalRecruiters = recruiters.length;
   const emailsSent = getSentEmailsCount();
