@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -5,10 +6,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar';
 import AppSidebarNav from '@/components/layout/sidebar-nav';
 import { ThemeProvider } from '@/components/theme-provider';
-import { Button } from '@/components/ui/button';
-import { Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AppProviders } from './providers'; // Import AppProviders
+import SidebarActions from '@/components/layout/sidebar-actions'; // Import the new client component
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -23,6 +23,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'CyberConnect AI',
   description: 'AI-powered recruiter outreach and email personalization.',
+  icons: null, // Explicitly disable favicon generation/linking
 };
 
 export default function RootLayout({
@@ -56,12 +57,7 @@ export default function RootLayout({
                   <AppSidebarNav />
                 </SidebarContent>
                 <SidebarFooter className="p-4 flex flex-col gap-2">
-                  <Button variant="ghost" className="w-full justify-start">
-                    <Settings className="mr-2 h-4 w-4" /> Settings
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start">
-                    <UserCircle className="mr-2 h-4 w-4" /> Profile
-                  </Button>
+                  <SidebarActions />
                 </SidebarFooter>
               </Sidebar>
               <SidebarInset>
