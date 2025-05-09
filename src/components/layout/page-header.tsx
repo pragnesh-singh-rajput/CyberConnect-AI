@@ -1,4 +1,4 @@
-import type React from 'react';
+import React from 'react'; // Added React import
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
