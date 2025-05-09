@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Wand2, Info } from 'lucide-react';
 import { Input } from '../ui/input';
-import { useApiUsage } from '@/contexts/ApiUsageContext'; // Import useApiUsage
+import { useApiUsage } from '@/contexts/ApiUsageContext';
 
 interface PersonalizeEmailDialogProps {
   recruiter: Recruiter | null;
@@ -47,17 +46,50 @@ export function PersonalizeEmailDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
-  const apiUsage = useApiUsage(); 
+  const apiUsage = useApiUsage();
 
   useEffect(() => {
     if (recruiter) {
       const defaultTemplate = templates.find(t => t.isDefault) || templates[0];
-      setSelectedTemplateId(defaultTemplate?.id || '');
-      setPersonalizedSubject(defaultTemplate?.subject || 'Regarding an Opportunity');
-      setPersonalizedBody(''); 
+      setCurrentSkills(userSkills.skills); // Set skills first as they might be used in template prefill
+
+      if (defaultTemplate) {
+        setSelectedTemplateId(defaultTemplate.id);
+
+        // If recruiter already has personalized content, use that for display
+        if (recruiter.personalizedEmailSubject && recruiter.personalizedEmailBody) {
+          setPersonalizedSubject(recruiter.personalizedEmailSubject);
+          setPersonalizedBody(recruiter.personalizedEmailBody);
+        } else {
+          // Otherwise, initialize from the selected template with basic replacements
+          const initialSubject = defaultTemplate.subject
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName);
+          // Note: {your_name} and {your_skills} are typically handled by the AI or user's signature.
+          // The AI gets the raw template and `currentSkills` separately.
+
+          const initialBody = defaultTemplate.body
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName)
+            .replace(/{your_skills}/gi, userSkills.skills); // Prefill skills from context
+
+          setPersonalizedSubject(initialSubject);
+          setPersonalizedBody(initialBody);
+        }
+      } else {
+        // Fallback if no templates exist (should be rare with initial data)
+        setPersonalizedSubject('Regarding an Opportunity');
+        setPersonalizedBody('');
+      }
+    } else {
+      // Clear fields if no recruiter is selected (e.g., dialog closes and reopens for no one)
+      setPersonalizedSubject('');
+      setPersonalizedBody('');
+      setCurrentSkills('');
+      setSelectedTemplateId('');
     }
-    setCurrentSkills(userSkills.skills);
   }, [recruiter, templates, userSkills]);
+
 
   const handleGenerateEmail = async () => {
     if (!recruiter || !selectedTemplateId) {
@@ -85,14 +117,13 @@ export function PersonalizeEmailDialog({
     }
 
     setIsGenerating(true);
-    setPersonalizedBody(''); 
-    setPersonalizedSubject(template.subject); 
+    // Don't clear subject/body here, AI will overwrite them if successful
 
     try {
       const input: PersonalizeEmailInput = {
         recruiterProfile: `${recruiter.recruiterName}, ${recruiter.title} at ${recruiter.companyName}. ${recruiter.notes || ''}`,
-        yourSkills: currentSkills,
-        template: `Subject: ${template.subject}\n\n${template.body}`,
+        yourSkills: currentSkills, // Use the potentially updated skills from the dialog
+        template: `Subject: ${template.subject}\n\n${template.body}`, // AI always gets the raw template
       };
       
       const result = await personalizeEmail(input); 
@@ -102,17 +133,34 @@ export function PersonalizeEmailDialog({
         setPersonalizedBody(result.body);
         toast({ title: 'Email Personalized', description: 'Review the generated email below.', variant: 'default' });
       } else {
+        // This case is now less likely due to fallback in personalizeEmailFlow
+        // but kept for robustness if the flow itself has an issue before its own fallback.
         console.error('AI did not return expected subject and body directly in dialog:', result);
-        setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
-        setPersonalizedBody(`[AI Personalization Issue - Using Fallback]\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
+        const fallbackSubject = template.subject
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName);
+        const fallbackBody = `[AI Personalization Issue - Using Fallback]\n\n${template.body
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName)
+            .replace(/{your_skills}/gi, currentSkills)}`;
+        setPersonalizedSubject(fallbackSubject);
+        setPersonalizedBody(fallbackBody);
         toast({ title: 'AI Issue', description: 'Used fallback content. Please review carefully.', variant: 'default' });
       }
 
     } catch (error) {
       console.error('Error personalizing email:', error);
       toast({ title: 'AI Error', description: 'Failed to personalize email. Please try again.', variant: 'destructive' });
-      setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
-      setPersonalizedBody(`Error generating email. Original template with basic replacements:\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
+      // Revert to template with basic replacement if AI fails catastrophically
+       const fallbackSubject = template.subject
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName);
+        const fallbackBody = `Error generating email. Original template with basic replacements:\n\n${template.body
+            .replace(/{recruiter_name}/gi, recruiter.recruiterName)
+            .replace(/{company_name}/gi, recruiter.companyName)
+            .replace(/{your_skills}/gi, currentSkills)}`;
+      setPersonalizedSubject(fallbackSubject);
+      setPersonalizedBody(fallbackBody);
     } finally {
       apiUsage.recordApiCall(); 
       setIsGenerating(false);
@@ -136,21 +184,15 @@ export function PersonalizeEmailDialog({
       const mailtoBody = encodeURIComponent(personalizedBody);
       const mailtoLink = `mailto:${recruiter.email}?subject=${mailtoSubject}&body=${mailtoBody}`;
 
-      // Open the default email client
       window.location.href = mailtoLink;
-
-      // Update recruiter status and log the email content locally
       onEmailSent(recruiter, personalizedSubject, personalizedBody);
       
-      // The toast is now more accurate as the user is being directed to their email client
-      // toast({ title: 'Email Client Opened', description: `Your email client should now be open with the email pre-filled for ${recruiter.recruiterName}.`, variant: 'default' });
-
     } catch (error) {
       console.error("Error preparing email for sending:", error);
       toast({ title: 'Error', description: 'Could not prepare email for sending. Please try again.', variant: 'destructive' });
     } finally {
       setIsSending(false);
-      onOpenChange(false); // Close the dialog regardless of mailto success, as control is passed to mail client
+      onOpenChange(false); 
     }
   };
 
@@ -165,7 +207,7 @@ export function PersonalizeEmailDialog({
         <DialogHeader>
           <DialogTitle>Personalize Email for {recruiter.recruiterName}</DialogTitle>
           <DialogDescription>
-            AI will generate a personalized email. Review and edit before sending.
+            AI can generate a personalized email. Review and edit before sending.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4 flex-grow overflow-y-auto pr-2">
@@ -209,34 +251,29 @@ export function PersonalizeEmailDialog({
             <p className="text-xs text-destructive text-center mt-1">Daily AI generation limit reached.</p>
           )}
 
-
-          {(personalizedBody || isGenerating) && (
-            <>
-              <div className="grid grid-cols-4 items-center gap-4 mt-4">
-                 <Label htmlFor="subject" className="text-right">Subject</Label>
-                 <Input 
-                    id="subject" 
-                    value={personalizedSubject} 
-                    onChange={(e) => setPersonalizedSubject(e.target.value)} 
-                    className="col-span-3"
-                    placeholder="Personalized subject will appear here..."
-                  />
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="email-body" className="text-right pt-2">Email Body</Label>
-                <Textarea
-                  id="email-body"
-                  value={personalizedBody}
-                  onChange={(e) => setPersonalizedBody(e.target.value)}
-                  className="col-span-3 min-h-[200px]"
-                  placeholder={isGenerating ? "Generating AI email..." : "Personalized email content will appear here..."}
-                />
-              </div>
-            </>
-          )}
+          <div className="grid grid-cols-4 items-center gap-4 mt-4">
+              <Label htmlFor="subject" className="text-right">Subject</Label>
+              <Input 
+                id="subject" 
+                value={personalizedSubject} 
+                onChange={(e) => setPersonalizedSubject(e.target.value)} 
+                className="col-span-3"
+                placeholder="Email subject will appear here..."
+              />
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="email-body" className="text-right pt-2">Email Body</Label>
+            <Textarea
+              id="email-body"
+              value={personalizedBody}
+              onChange={(e) => setPersonalizedBody(e.target.value)}
+              className="col-span-3 min-h-[200px]"
+              placeholder={isGenerating ? "Generating AI email..." : "Email content will appear here..."}
+            />
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending || isGenerating}>Cancel</Button>
           <Button onClick={handleSendEmail} disabled={isSending || !personalizedBody || !personalizedSubject || isGenerating}>
             {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             Send Email
