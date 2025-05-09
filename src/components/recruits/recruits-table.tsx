@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -31,7 +32,8 @@ import { PersonalizeEmailDialog } from './personalize-email-dialog';
 import { ViewEmailDialog } from './view-email-dialog';
 import type { Recruiter } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Card } from '@/components/ui/card'; // Added import for Card
 
 export function RecruitersTable() {
   const { recruiters, updateRecruiter, deleteRecruiter } = useRecruiters();
@@ -264,3 +266,4 @@ export function RecruitersTable() {
     </div>
   );
 }
+
