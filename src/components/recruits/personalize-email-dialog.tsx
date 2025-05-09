@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,8 +17,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Wand2 } from 'lucide-react';
+import { Loader2, Send, Wand2, Info } from 'lucide-react';
 import { Input } from '../ui/input';
+import { useApiUsage } from '@/contexts/ApiUsageContext'; // Import useApiUsage
 
 interface PersonalizeEmailDialogProps {
   recruiter: Recruiter | null;
@@ -45,6 +47,7 @@ export function PersonalizeEmailDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
+  const apiUsage = useApiUsage(); // Use the API usage hook
 
   useEffect(() => {
     if (recruiter) {
@@ -62,6 +65,15 @@ export function PersonalizeEmailDialog({
       return;
     }
 
+    if (!apiUsage.canMakeApiCall()) {
+      toast({
+        title: 'AI Limit Reached',
+        description: `You have reached your daily limit of ${apiUsage.getLimit()} AI personalizations. Please try again tomorrow.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const template = templates.find(t => t.id === selectedTemplateId);
     if (!template) {
       toast({ title: 'Error', description: 'Selected template not found.', variant: 'destructive' });
@@ -73,8 +85,8 @@ export function PersonalizeEmailDialog({
     }
 
     setIsGenerating(true);
-    setPersonalizedBody(''); // Clear previous generation
-    setPersonalizedSubject(template.subject); // Reset subject to template default before generation
+    setPersonalizedBody(''); 
+    setPersonalizedSubject(template.subject); 
 
     try {
       const input: PersonalizeEmailInput = {
@@ -83,15 +95,13 @@ export function PersonalizeEmailDialog({
         template: `Subject: ${template.subject}\n\n${template.body}`,
       };
       
-      const result = await personalizeEmail(input); // Expects { subject: string, body: string }
+      const result = await personalizeEmail(input); 
       
       if (result && result.subject && result.body) {
         setPersonalizedSubject(result.subject);
         setPersonalizedBody(result.body);
         toast({ title: 'Email Personalized', description: 'Review the generated email below.', variant: 'default' });
       } else {
-        // This case should ideally be handled by the fallback in the AI flow itself
-        // or by more specific error types from the flow.
         console.error('AI did not return expected subject and body directly in dialog:', result);
         setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
         setPersonalizedBody(`[AI Personalization Issue - Using Fallback]\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
@@ -101,10 +111,10 @@ export function PersonalizeEmailDialog({
     } catch (error) {
       console.error('Error personalizing email:', error);
       toast({ title: 'AI Error', description: 'Failed to personalize email. Please try again.', variant: 'destructive' });
-      // Fallback to a modified template body if AI fails catastrophically
       setPersonalizedSubject(template.subject.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name"));
       setPersonalizedBody(`Error generating email. Original template with basic replacements:\n\n${template.body.replace(/{recruiter_name}/g, recruiter.recruiterName).replace(/{company_name}/g, recruiter.companyName).replace(/{your_name}/g, "Your Name").replace(/{your_skills}/g, currentSkills)}`);
     } finally {
+      apiUsage.recordApiCall(); // Record the API call attempt
       setIsGenerating(false);
     }
   };
@@ -115,14 +125,16 @@ export function PersonalizeEmailDialog({
       return;
     }
     setIsSending(true);
-    // Simulate email sending
     await new Promise(resolve => setTimeout(resolve, 1000));
     onEmailSent(recruiter, personalizedSubject, personalizedBody);
     setIsSending(false);
-    onOpenChange(false); // Close dialog
+    onOpenChange(false); 
   };
 
   if (!recruiter) return null;
+
+  const remainingCalls = apiUsage.getRemainingCalls();
+  const canGenerate = apiUsage.canMakeApiCall();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -130,7 +142,7 @@ export function PersonalizeEmailDialog({
         <DialogHeader>
           <DialogTitle>Personalize Email for {recruiter.recruiterName}</DialogTitle>
           <DialogDescription>
-            AI will generate a personalized email based on the selected template and recruiter info.
+            AI will generate a personalized email. Review and edit before sending.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4 flex-grow overflow-y-auto pr-2">
@@ -159,14 +171,25 @@ export function PersonalizeEmailDialog({
             />
           </div>
           
-          <Button onClick={handleGenerateEmail} disabled={isGenerating || !selectedTemplateId} className="w-full">
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-muted-foreground flex items-center">
+              <Info className="h-3 w-3 mr-1" />
+              Daily AI generations remaining: {remainingCalls}/{apiUsage.getLimit()}
+            </p>
+          </div>
+          
+          <Button onClick={handleGenerateEmail} disabled={isGenerating || !selectedTemplateId || !canGenerate} className="w-full mt-1">
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
             Generate Personalized Email
           </Button>
+          {!canGenerate && !isGenerating && (
+            <p className="text-xs text-destructive text-center mt-1">Daily AI generation limit reached.</p>
+          )}
 
-          {(personalizedBody || isGenerating) && ( // Show fields even if body is empty during generation
+
+          {(personalizedBody || isGenerating) && (
             <>
-              <div className="grid grid-cols-4 items-center gap-4">
+              <div className="grid grid-cols-4 items-center gap-4 mt-4">
                  <Label htmlFor="subject" className="text-right">Subject</Label>
                  <Input 
                     id="subject" 
