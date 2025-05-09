@@ -18,7 +18,7 @@ const PersonalizeEmailInputSchema = z.object({
   yourSkills: z
     .string()
     .describe('Your skills and experiences to include in the email.'),
-  template: z.string().describe('The base email template content (subject and body) to use as a starting point for personalization. The AI should refer to this template but generate its own personalized version.'),
+  template: z.string().describe('The base email template content (subject and body) to use as a starting point for personalization. The AI should refer to this template but generate its own personalized version. Expected format: "Subject: <subject_line>\\n\\n<email_body>"'),
 });
 export type PersonalizeEmailInput = z.infer<typeof PersonalizeEmailInputSchema>;
 
@@ -43,7 +43,7 @@ Your goal is to create a compelling, personalized email subject and body.
 You will be provided with:
 1.  **Recruiter Profile**: Information about the recruiter (e.g., name, title, company, specific interests or notes).
 2.  **Your Skills**: The job seeker's skills and experiences.
-3.  **Base Email Template**: An existing email template (which includes a subject and body) that serves as a starting point or inspiration.
+3.  **Base Email Template**: An existing email template (which includes a subject and body) that serves as a starting point or inspiration. The format is "Subject: <subject_line>\\n\\n<email_body>".
 
 Analyze all this information to craft a unique and engaging email. The output must be a new subject line and a new email body, tailored to the specific recruiter. Make sure to replace placeholders like {recruiter_name}, {company_name}, {your_name}, and {your_skills} with relevant information or adapt them appropriately in the generated content.
 
@@ -67,33 +67,46 @@ const personalizeEmailFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    // Ensure output is not null, especially if the AI might fail or return unexpected results.
-    // For robust error handling, you might check specific fields or use a try-catch here.
+
     if (!output || !output.subject || !output.body) {
-        // Fallback or error logging
-        console.error("AI did not return expected subject and body.", output);
-        // Attempt to use template subject with basic replacements as a fallback
-        // This part is a simplified fallback; a more robust solution might involve the original template's logic
-        // or signaling an error to the user.
-        const recruiterName = input.recruiterProfile.split(',')[0] || "Recruiter"; // Basic extraction
-        const companyNameMatch = input.recruiterProfile.match(/at (.*?)\./);
-        const companyName = companyNameMatch ? companyNameMatch[1] : "their company";
+        console.error("AI did not return expected subject and body. Using fallback.", output);
+        
+        // Extract recruiter name (assuming it's the first part of the profile string before a comma or is the whole string if no comma)
+        const recruiterName = input.recruiterProfile.split(',')[0]?.trim() || "Recruiter";
+        
+        // Extract company name (look for "at CompanyName" pattern, resilient to punctuation)
+        const companyNameMatch = input.recruiterProfile.match(/at\s(.*?)(?:,|\.|;|$)/i);
+        const companyName = companyNameMatch && companyNameMatch[1] ? companyNameMatch[1].trim() : "their company";
 
-        const templateSubject = input.template.split('\n\n')[0]?.replace('Subject: ', '') || "Following Up";
-        const fallbackSubject = templateSubject
+        // Parse subject and body from the input.template string
+        // which is expected to be "Subject: <subject_line>\n\n<email_body>"
+        const templateParts = input.template.split('\n\n');
+        let baseSubject = "Following Up"; // Default fallback subject
+        let baseBody = templateParts.slice(1).join('\n\n') || "Please see details below.";
+
+        if (templateParts[0]?.toLowerCase().startsWith('subject: ')) {
+            baseSubject = templateParts[0].substring('subject: '.length).trim();
+        } else if (templateParts.length > 1) { // If no "Subject:" prefix but multiple parts, assume first is subject.
+            baseSubject = templateParts[0].trim();
+        } else { // If only one part, assume it's all body.
+           baseBody = input.template;
+        }
+
+
+        const fallbackSubject = baseSubject
             .replace(/{recruiter_name}/gi, recruiterName)
             .replace(/{company_name}/gi, companyName)
-            .replace(/{your_name}/gi, "a Skilled Professional"); // Generic
+            .replace(/{your_name}/gi, "a Skilled Professional"); // Generic placeholder for user's name
 
-        const fallbackBody = (input.template.split('\n\n').slice(1).join('\n\n') || "Please see details below.")
+        const fallbackBodyContent = baseBody
             .replace(/{recruiter_name}/gi, recruiterName)
             .replace(/{company_name}/gi, companyName)
-            .replace(/{your_name}/gi, "a Skilled Professional")
+            .replace(/{your_name}/gi, "a Skilled Professional") // Generic placeholder
             .replace(/{your_skills}/gi, input.yourSkills);
 
         return {
             subject: fallbackSubject,
-            body: `[AI Personalization Issue - Fallback Content]\n\n${fallbackBody}`,
+            body: `[AI Personalization Issue - Fallback Content]\n\n${fallbackBodyContent}`,
         };
     }
     return output;

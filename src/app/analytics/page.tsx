@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
   const totalRecruiters = recruiters.length;
   const emailsSent = getSentEmailsCount();
   const emailsReplied = getRepliedEmailsCount();
-  const emailsOpened = Math.floor(emailsSent * 0.455); // Mocked: 45.5% open rate
+  const emailsOpened = Math.floor(emailsSent * 0.455); // Mocked: 45.5% open rate, as actual open tracking is complex
   
   const conversionRate = emailsSent > 0 ? (emailsReplied / emailsSent) * 100 : 0;
 
@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
     <>
       <PageHeader
         title="Email Campaign Analytics"
-        description="Track the performance of your outreach efforts."
+        description="Track the performance of your outreach efforts. Some charts display illustrative data."
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
@@ -76,10 +76,11 @@ export default function AnalyticsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl flex items-center text-foreground">
-              <LineChart className="mr-2 h-5 w-5 text-accent" /> Emails Sent Over Time (Mock)
+              <LineChart className="mr-2 h-5 w-5 text-accent" /> Emails Sent Over Time (Illustrative)
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">Note: This chart uses mock data for demonstration purposes.</p>
             <ResponsiveContainer width="100%" height={300}>
               <RechartsLineChart data={mockSentOverTimeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -99,10 +100,11 @@ export default function AnalyticsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl flex items-center text-foreground">
-              <BarChart className="mr-2 h-5 w-5 text-accent" /> Campaign Performance (Mock)
+              <BarChart className="mr-2 h-5 w-5 text-accent" /> Campaign Performance (Illustrative)
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">Note: This chart uses mock data for demonstration purposes.</p>
             <ResponsiveContainer width="100%" height={300}>
               <RechartsBarChart data={mockCampaignPerformanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
