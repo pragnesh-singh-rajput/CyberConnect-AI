@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input'; // Import Input
 import { PlusCircle, Search, Loader2, Send } from 'lucide-react';
 import { RecruitersTable } from '@/components/recruits/recruits-table';
 import React, { useState, useCallback } from 'react';
@@ -19,24 +20,22 @@ import { scrapeRecruiters, type ScrapeRecruitersInput } from '@/ai/flows/scrape-
 export default function RecruitersPage() {
   const [isScraping, setIsScraping] = useState(false);
   const { toast } = useToast();
-  const { addRecruiter, recruiters: currentRecruiters } = useRecruiters(); // Changed addRecruiterFromScrapedData to addRecruiter
+  const { addRecruiter, recruiters: currentRecruiters } = useRecruiters();
   const { templates, userSkills, setUserSkills: updateGlobalUserSkills } = useTemplates();
   const [selectedRecruiterForEmail, setSelectedRecruiterForEmail] = React.useState<Recruiter | null>(null);
   const [isPersonalizeDialogOpen, setIsPersonalizeDialogOpen] = React.useState(false);
   const apiUsage = useApiUsage();
-
+  const [scrapeQuery, setScrapeQuery] = useState(''); // State for the scrape query input
 
   const handleStartScraping = async () => {
-    let query = window.prompt("Enter search query (e.g., 'Google', 'https://careers.google.com', 'AI recruiters NYC', or a LinkedIn profile URL):");
-    
-    if (!query || query.trim() === "") {
-      query = "Tech Recruiter"; 
+    if (!scrapeQuery || scrapeQuery.trim() === "") {
       toast({
-        title: "No Query Provided",
-        description: `Using default search query: "${query}". You can specify a query next time.`,
-        variant: "default",
-        duration: 7000,
+        title: "Scraping Query Required",
+        description: "Please enter a search query or URL to start scraping.",
+        variant: "destructive",
+        duration: 5000,
       });
+      return;
     }
 
     let source: ScrapeRecruitersInput['source'] = 'company_site'; // Default source
@@ -61,25 +60,24 @@ export default function RecruitersPage() {
     setIsScraping(true);
     toast({
       title: "Scraping Started",
-      description: `Searching for recruiters matching: "${query}" from source: "${source}". This may take a few moments.`,
+      description: `Searching for recruiters matching: "${scrapeQuery}" from source: "${source}". This may take a few moments.`,
       variant: "default",
       duration: 7000,
     });
 
     try {
-      const input: ScrapeRecruitersInput = { query, source, maxResults: 5 };
+      const input: ScrapeRecruitersInput = { query: scrapeQuery, source, maxResults: 5 };
       const result = await scrapeRecruiters(input);
       
       let newRecruitersCount = 0;
       if (result && result.scrapedRecruiters && result.scrapedRecruiters.length > 0) {
         result.scrapedRecruiters.forEach(recruiterData => {
-          // Check if recruiter already exists (e.g., by email or LinkedIn URL)
           const existing = currentRecruiters.find(r => 
-            (r.email && r.email === recruiterData.email) || 
-            (r.linkedInProfileUrl && r.linkedInProfileUrl === recruiterData.linkedInProfileUrl)
+            (r.email && recruiterData.email && r.email.toLowerCase() === recruiterData.email.toLowerCase()) || 
+            (r.linkedInProfileUrl && recruiterData.linkedInProfileUrl && r.linkedInProfileUrl.toLowerCase() === recruiterData.linkedInProfileUrl.toLowerCase())
           );
           if (!existing) {
-            addRecruiter(recruiterData); // addRecruiter expects Omit<Recruiter, 'id' | 'status' | 'lastContacted'>
+            addRecruiter(recruiterData); 
             newRecruitersCount++;
           }
         });
@@ -94,12 +92,12 @@ export default function RecruitersPage() {
         } else if (result.scrapedRecruiters.length > 0) {
              toast({
                 title: "Scraping Complete",
-                description: `Scraper found ${result.scrapedRecruiters.length} potential recruiters, but they already exist in your list. ${result.statusMessage}`,
+                description: `Scraper found ${result.scrapedRecruiters.length} potential recruiters, but they may already exist in your list. ${result.statusMessage}`,
                 variant: "default",
                 duration: 7000,
             });
         }
-         else { // No recruiters found by scraper
+         else { 
             toast({
                 title: "No Recruiters Found by Scraper",
                 description: result.statusMessage || "The scraping process did not find any recruiters for your query.",
@@ -108,7 +106,7 @@ export default function RecruitersPage() {
             });
         }
 
-      } else { // result or result.scrapedRecruiters is empty
+      } else { 
         toast({
           title: "No Recruiters Found by Scraper",
           description: result.statusMessage || "The scraping process did not find any recruiters for your query.",
@@ -153,6 +151,12 @@ export default function RecruitersPage() {
       personalizedEmailSubject: subject,
       personalizedEmailBody: body,
     });
+    // Open mailto link
+    const mailtoSubject = encodeURIComponent(subject);
+    const mailtoBody = encodeURIComponent(body);
+    const mailtoLink = `mailto:${recruiter.email}?subject=${mailtoSubject}&body=${mailtoBody}`;
+    window.location.href = mailtoLink;
+
     toast({ title: 'Email Marked as Sent!', description: `Email to ${recruiter.recruiterName} prepared. Your default email client should open.`, variant: 'default' });
     setIsPersonalizeDialogOpen(false);
   }, [updateRecruiter, toast]);
@@ -164,8 +168,16 @@ export default function RecruitersPage() {
         title="Recruiters"
         description="Manage your list of recruiters and their outreach status."
         actions={
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={handleStartScraping} disabled={isScraping} variant="outline">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Input
+              type="text"
+              placeholder="Enter company name, URL, or LinkedIn profile..."
+              value={scrapeQuery}
+              onChange={(e) => setScrapeQuery(e.target.value)}
+              className="w-full sm:w-auto sm:min-w-[300px]"
+              aria-label="Scraping query input"
+            />
+            <Button onClick={handleStartScraping} disabled={isScraping} variant="outline" className="w-full sm:w-auto">
               {isScraping ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -173,7 +185,7 @@ export default function RecruitersPage() {
               )}
               {isScraping ? 'Scraping...' : 'Start Scraping'}
             </Button>
-            <Button asChild variant="default">
+            <Button asChild variant="default" className="w-full sm:w-auto">
               <Link href="/recruits/add">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Recruiter
