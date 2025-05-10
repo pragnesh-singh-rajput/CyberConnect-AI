@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet" // Added SheetTitle
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -202,6 +202,7 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
+            <SheetTitle className="sr-only">Main Menu</SheetTitle> {/* Added for accessibility */}
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
@@ -351,7 +352,12 @@ const SidebarHeader = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="header"
-      className={cn("flex flex-col gap-2 p-2", className)} 
+      className={cn(
+        "p-4 flex items-center",
+        "group-data-[state=expanded]:justify-between group-data-[state=expanded]:gap-3", 
+        "group-data-[state=collapsed]:flex-col group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:gap-4",
+        className
+        )}
       {...props}
     />
   )
@@ -368,7 +374,7 @@ const SidebarFooter = React.forwardRef<
       data-sidebar="footer"
       className={cn(
         "flex flex-col gap-2 p-2 mt-auto",
-        "group-data-[collapsible=icon]:justify-center",
+        "group-data-[state=collapsed]:items-center group-data-[state=collapsed]:justify-center",
         className)} 
       {...props}
     />
@@ -401,7 +407,7 @@ const SidebarContent = React.forwardRef<
       data-sidebar="content"
       className={cn(
         "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
-        "group-data-[collapsible=icon]:justify-center",
+        "group-data-[state=collapsed]:items-center group-data-[state=collapsed]:justify-start", // Changed from justify-center
         className
       )}
       {...props}
@@ -490,7 +496,7 @@ const SidebarMenu = React.forwardRef<
     data-sidebar="menu"
     className={cn(
       "flex w-full min-w-0 flex-col gap-1",
-      "group-data-[collapsible=icon]:items-center",
+      "group-data-[state=collapsed]:items-center", // Added items-center for collapsed state
       className)}
     {...props}
   />
