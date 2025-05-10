@@ -6,7 +6,7 @@ export const ScrapedRecruiterSchema = z.object({
   recruiterName: z.string().describe('The name of the recruiter.'),
   companyName: z.string().describe('The company the recruiter works for.'),
   title: z.string().describe('The recruiter\'s title.'),
-  email: z.string().email().describe('The recruiter\'s email address.'),
+  email: z.string().email().optional().describe('The recruiter\'s email address (optional, might be N/A).').or(z.literal('N/A')),
   linkedInProfileUrl: z.string().url().optional().describe('The URL of the recruiter\'s LinkedIn profile.'),
   notes: z.string().optional().describe('Additional notes or profile information about the recruiter.'),
 });
@@ -14,9 +14,9 @@ export type ScrapedRecruiter = z.infer<typeof ScrapedRecruiterSchema>;
 
 
 export const ScrapeRecruitersInputSchema = z.object({
-  query: z.string().describe('The search query for recruiters (e.g., "Tech Recruiters at Google", "Software Engineer Recruiter at Microsoft", or a LinkedIn search URL for recruiters).'),
-  source: z.enum(['linkedin', 'general_web', 'company_site']).default('general_web').describe('The primary source to target for scraping.'),
-  maxResults: z.number().int().positive().optional().default(5).describe('Maximum number of recruiters to attempt to scrape.'),
+  query: z.string().describe('The search query. For "linkedin", provide a direct LinkedIn URL. For "company_site", provide a company name or website URL. For "general_web", provide a keyword/search term or a direct URL to scrape.'),
+  source: z.enum(['linkedin', 'general_web', 'company_site']).default('general_web').describe('The primary source to target for scraping. "linkedin" for specific LinkedIn URLs, "company_site" to crawl a company website, "general_web" for keyword searches (uses Google) or direct URL scraping.'),
+  maxResults: z.number().int().positive().optional().default(5).describe('Maximum number of distinct recruiters to attempt to return.'),
 });
 export type ScrapeRecruitersInput = z.infer<typeof ScrapeRecruitersInputSchema>;
 
