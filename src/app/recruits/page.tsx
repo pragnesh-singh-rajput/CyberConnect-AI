@@ -19,7 +19,7 @@ import { scrapeRecruiters, type ScrapeRecruitersInput } from '@/ai/flows/scrape-
 export default function RecruitersPage() {
   const [isScraping, setIsScraping] = useState(false);
   const { toast } = useToast();
-  const { recruiters, updateRecruiter, addRecruiter } = useRecruiters();
+  const { addRecruiterFromScrapedData, updateRecruiter } = useRecruiters();
   const { templates, userSkills, setUserSkills: updateGlobalUserSkills } = useTemplates();
   const [selectedRecruiterForEmail, setSelectedRecruiterForEmail] = React.useState<Recruiter | null>(null);
   const [isPersonalizeDialogOpen, setIsPersonalizeDialogOpen] = React.useState(false);
@@ -27,27 +27,35 @@ export default function RecruitersPage() {
 
 
   const handleStartScraping = async () => {
-    const query = window.prompt("Enter your search query for recruiters (e.g., 'Tech Recruiters at Google', or a LinkedIn search URL):");
+    let query = window.prompt("Enter your search query for recruiters (e.g., 'Tech Recruiters at Google', 'Software Engineer Recruiter New York', or a company careers page URL like 'https://careers.google.com'):");
+    
     if (!query || query.trim() === "") {
+      query = "Technical Recruiter"; // Default query
       toast({
-        title: "Scraping Cancelled",
-        description: "No search query provided.",
+        title: "No Query Provided by User",
+        description: `Using default search query: "${query}". You can specify a query next time.`,
         variant: "default",
+        duration: 7000,
       });
-      return;
     }
 
     let source: ScrapeRecruitersInput['source'] = 'general_web';
-    const sourcePrompt = window.prompt("Enter data source (linkedin, company_site, general_web - default is general_web):")?.toLowerCase();
+    const sourcePrompt = window.prompt("Enter data source ('linkedin', 'company_site', or 'general_web' - default is 'general_web'):")?.trim().toLowerCase();
     if (sourcePrompt === 'linkedin' || sourcePrompt === 'company_site' || sourcePrompt === 'general_web') {
         source = sourcePrompt as ScrapeRecruitersInput['source'];
+    } else if (sourcePrompt && sourcePrompt !== "") {
+        toast({
+            title: "Invalid Source",
+            description: `Source "${sourcePrompt}" is not valid. Using default 'general_web'.`,
+            variant: "default"
+        });
     }
 
 
     setIsScraping(true);
     toast({
-      title: "Scraping Started (Simulation)",
-      description: `Searching for recruiters matching: "${query}" from source: "${source}". This is a simulation and will return dummy data. Actual scraping of sites like LinkedIn is against their ToS.`,
+      title: "Scraping Started",
+      description: `Searching for recruiters matching: "${query}" from source: "${source}". This may take a few moments.`,
       variant: "default",
       duration: 7000,
     });
@@ -58,26 +66,31 @@ export default function RecruitersPage() {
 
       if (result && result.scrapedRecruiters && result.scrapedRecruiters.length > 0) {
         result.scrapedRecruiters.forEach(recruiterData => {
-          addRecruiter(recruiterData);
+          // Assuming addRecruiter can handle ScrapedRecruiter type or you have a conversion function
+          addRecruiterFromScrapedData(recruiterData);
         });
         toast({
-          title: "Scraping Complete (Simulated)",
-          description: `${result.scrapedRecruiters.length} potential recruiters (dummy data) added. ${result.statusMessage}`,
+          title: "Scraping Complete",
+          description: `${result.scrapedRecruiters.length} potential recruiters added. ${result.statusMessage}`,
           variant: "default",
+          duration: 7000,
         });
       } else {
         toast({
-          title: "No Recruiters Found (Simulated)",
-          description: result.statusMessage || "The simulated scraping did not find any recruiters for your query.",
+          title: "No New Recruiters Found",
+          description: result.statusMessage || "The scraping process did not find any new recruiters for your query.",
           variant: "default",
+          duration: 7000,
         });
       }
     } catch (error) {
-      console.error("Error during scraping simulation:", error);
+      console.error("Error during scraping:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
-        title: "Scraping Error (Simulated)",
-        description: "An error occurred during the simulated scraping process. Please check the console.",
+        title: "Scraping Error",
+        description: `An error occurred: ${errorMessage}. Please check the console for more details or try a different query/source.`,
         variant: "destructive",
+        duration: 10000,
       });
     } finally {
       setIsScraping(false);
@@ -104,7 +117,9 @@ export default function RecruitersPage() {
       personalizedEmailSubject: subject,
       personalizedEmailBody: body,
     });
-    toast({ title: 'Email Sent!', description: `Personalized email sent to ${recruiter.recruiterName}.`, variant: 'default' });
+    // The actual email sending happens via mailto link triggered in PersonalizeEmailDialog
+    // Toast here confirms the state update and intent.
+    toast({ title: 'Email Marked as Sent!', description: `Email to ${recruiter.recruiterName} prepared. Your default email client should open.`, variant: 'default' });
     setIsPersonalizeDialogOpen(false);
   }, [updateRecruiter, toast]);
 
@@ -122,7 +137,7 @@ export default function RecruitersPage() {
               ) : (
                 <Search className="mr-2 h-4 w-4" />
               )}
-              {isScraping ? 'Scraping...' : 'Start Scraping (Simulated)'}
+              {isScraping ? 'Scraping...' : 'Start Scraping'}
             </Button>
             <Button asChild variant="default">
               <Link href="/recruits/add">
@@ -148,4 +163,3 @@ export default function RecruitersPage() {
     </>
   );
 }
-
