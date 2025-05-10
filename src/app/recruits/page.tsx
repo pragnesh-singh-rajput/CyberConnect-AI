@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Import Input
+import { Input } from '@/components/ui/input'; 
 import { PlusCircle, Search, Loader2, Send } from 'lucide-react';
 import { RecruitersTable } from '@/components/recruits/recruits-table';
 import React, { useState, useCallback } from 'react';
@@ -25,7 +25,7 @@ export default function RecruitersPage() {
   const [selectedRecruiterForEmail, setSelectedRecruiterForEmail] = React.useState<Recruiter | null>(null);
   const [isPersonalizeDialogOpen, setIsPersonalizeDialogOpen] = React.useState(false);
   const apiUsage = useApiUsage();
-  const [scrapeQuery, setScrapeQuery] = useState(''); // State for the scrape query input
+  const [scrapeQuery, setScrapeQuery] = useState(''); 
 
   const handleStartScraping = async () => {
     if (!scrapeQuery || scrapeQuery.trim() === "") {
@@ -38,23 +38,28 @@ export default function RecruitersPage() {
       return;
     }
 
-    let source: ScrapeRecruitersInput['source'] = 'company_site'; // Default source
+    let source: ScrapeRecruitersInput['source'] = 'company_site'; 
     const sourcePromptMessage = "Enter data source:\n" +
     "- 'linkedin' (for direct profile URLs, e.g., https://linkedin.com/in/name)\n" +
     "- 'company_site' (company name like 'Google' or website URL like https://careers.google.com - DEFAULT)\n" +
     "- 'general_web' (search term like 'AI recruiters NYC' for a Google link, or specific webpage URL for direct scraping)\n" +
     "Enter choice (leave blank for default 'company_site'):";
-    const userInputSource = window.prompt(sourcePromptMessage)?.trim().toLowerCase();
+    
+    let userInputSource: string | null = null;
+    if (typeof window !== 'undefined') {
+      userInputSource = window.prompt(sourcePromptMessage)?.trim().toLowerCase();
+    }
+
 
     if (userInputSource === 'linkedin' || userInputSource === 'company_site' || userInputSource === 'general_web') {
         source = userInputSource as ScrapeRecruitersInput['source'];
-    } else if (userInputSource && userInputSource !== "") { // If user entered something invalid
+    } else if (userInputSource && userInputSource !== "") { 
         toast({
             title: "Invalid Source",
             description: `Source "${userInputSource}" is not valid. Using default '${source}'.`,
             variant: "default"
         });
-    } // If userInputSource is empty or null, the default 'company_site' is used.
+    } 
 
 
     setIsScraping(true);
@@ -151,11 +156,19 @@ export default function RecruitersPage() {
       personalizedEmailSubject: subject,
       personalizedEmailBody: body,
     });
-    // Open mailto link
-    const mailtoSubject = encodeURIComponent(subject);
-    const mailtoBody = encodeURIComponent(body);
-    const mailtoLink = `mailto:${recruiter.email}?subject=${mailtoSubject}&body=${mailtoBody}`;
-    window.location.href = mailtoLink;
+    
+    let mailtoLink = `mailto:${recruiter.email}`;
+    const params = new URLSearchParams();
+    if (subject) params.append('subject', subject);
+    if (body) params.append('body', body);
+    const queryString = params.toString();
+    if (queryString) {
+      mailtoLink += `?${queryString}`;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.location.href = mailtoLink;
+    }
 
     toast({ title: 'Email Marked as Sent!', description: `Email to ${recruiter.recruiterName} prepared. Your default email client should open.`, variant: 'default' });
     setIsPersonalizeDialogOpen(false);
@@ -167,33 +180,31 @@ export default function RecruitersPage() {
       <PageHeader
         title="Recruiters"
         description="Manage your list of recruiters and their outreach status."
-        actions={
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Input
-              type="text"
-              placeholder="Enter company name, URL, or LinkedIn profile..."
-              value={scrapeQuery}
-              onChange={(e) => setScrapeQuery(e.target.value)}
-              className="w-full sm:w-auto sm:min-w-[300px]"
-              aria-label="Scraping query input"
-            />
-            <Button onClick={handleStartScraping} disabled={isScraping} variant="outline" className="w-full sm:w-auto">
-              {isScraping ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="mr-2 h-4 w-4" />
-              )}
-              {isScraping ? 'Scraping...' : 'Start Scraping'}
-            </Button>
-            <Button asChild variant="default" className="w-full sm:w-auto">
-              <Link href="/recruits/add">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Recruiter
-              </Link>
-            </Button>
-          </div>
-        }
       />
+      <div className="flex flex-col sm:flex-row gap-2 mb-6 w-full items-center">
+        <Input
+          type="text"
+          placeholder="Enter company name, URL, LinkedIn profile, or keywords..."
+          value={scrapeQuery}
+          onChange={(e) => setScrapeQuery(e.target.value)}
+          className="w-full sm:flex-1 sm:min-w-[300px]"
+          aria-label="Scraping query input"
+        />
+        <Button onClick={handleStartScraping} disabled={isScraping} variant="outline" className="w-full sm:w-auto">
+          {isScraping ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="mr-2 h-4 w-4" />
+          )}
+          {isScraping ? 'Scraping...' : 'Start Scraping'}
+        </Button>
+        <Button asChild variant="default" className="w-full sm:w-auto">
+          <Link href="/recruits/add">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add New Recruiter
+          </Link>
+        </Button>
+      </div>
       <RecruitersTable onAction={handleOpenPersonalizeDialog} actionIcon={Send} actionLabel="Personalize & Send" />
       {selectedRecruiterForEmail && (
         <PersonalizeEmailDialog
