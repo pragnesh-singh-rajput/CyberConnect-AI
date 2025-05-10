@@ -8,38 +8,38 @@ body {
 
 @layer base {
   :root {
-    /* Default to dark theme variables */
-    --background: 0 0% 10%; /* Very Dark Gray #1A1A1A */
-    --foreground: 0 0% 95%; /* Light Gray #F2F2F2 */
+    /* Default to dark theme variables - Refined Palette */
+    --background: 220 15% 10%; /* Very Dark Desaturated Blue #13151A */
+    --foreground: 210 20% 95%; /* Light Gray #EDF0F2 */
 
-    --card: 0 0% 17%; /* Dark Gray #2C2C2C */
-    --card-foreground: 0 0% 95%; /* Light Gray #F2F2F2 */
+    --card: 220 15% 15%; /* Dark Desaturated Blue #1E2129 */
+    --card-foreground: 210 20% 95%; /* Light Gray #EDF0F2 */
 
-    --popover: 0 0% 17%; /* Dark Gray #2C2C2C */
-    --popover-foreground: 0 0% 95%; /* Light Gray #F2F2F2 */
+    --popover: 220 15% 15%; /* Dark Desaturated Blue #1E2129 */
+    --popover-foreground: 210 20% 95%; /* Light Gray #EDF0F2 */
 
-    --primary: 0 0% 20%; /* Dark Gray #333333 */
-    --primary-foreground: 0 0% 98%; /* Almost White #FAFAFA */
+    --primary: 220 15% 30%; /* Darker Blue-Gray for primary buttons #3E4559 */
+    --primary-foreground: 210 20% 98%; /* Almost White #F7F8FA */
 
-    --secondary: 0 0% 40%; /* Medium Gray #666666 */
-    --secondary-foreground: 0 0% 98%; /* Almost White #FAFAFA */
+    --secondary: 220 10% 40%; /* Medium Desaturated Blue-Gray #5D6372 */
+    --secondary-foreground: 210 20% 98%; /* Almost White #F7F8FA */
 
-    --muted: 0 0% 25%; /* Lighter than card #404040 */
-    --muted-foreground: 0 0% 65%; /* Medium-Light Gray #A6A6A6 */
+    --muted: 220 15% 20%; /* Desaturated Blue-Gray #282C38 */
+    --muted-foreground: 210 15% 65%; /* Medium-Light Gray #9AA3B0 */
 
     --accent: 174 72% 56%; /* Teal #40E0D0 */
-    --accent-foreground: 0 0% 10%; /* Dark text for contrast on Teal #1A1A1A */
+    --accent-foreground: 220 20% 10%; /* Very Dark Blue for contrast on Teal #14161C */
 
-    --destructive: 0 63% 51%; /* Standard Red for destructive actions */
+    --destructive: 0 63% 51%; /* Standard Red */
     --destructive-foreground: 0 0% 98%; /* Almost White #FAFAFA */
 
-    --border: 0 0% 25%; /* Similar to muted #404040 */
-    --input: 0 0% 22%; /* Similar to card #383838 */
+    --border: 220 15% 25%; /* Desaturated Blue-Gray for borders #343A4A */
+    --input: 220 15% 18%; /* Dark Desaturated Blue-Gray for inputs #252833 */
     --ring: 174 72% 56%; /* Accent color for rings (Teal) */
 
     --radius: 0.5rem;
 
-    /* Chart colors (adjust if needed for dark theme visibility) */
+    /* Chart colors (generally fine, ensure they contrast well with new bg/fg) */
     --chart-1: 174 72% 56%; /* Teal */
     --chart-2: 210 70% 60%; /* A contrasting blue */
     --chart-3: 30 80% 65%;  /* A contrasting orange */
@@ -47,19 +47,16 @@ body {
     --chart-5: 60 70% 55%;  /* A contrasting yellow */
 
     /* Sidebar specific colors for dark theme */
-    --sidebar-background: 0 0% 12%; /* Slightly different dark #1F1F1F */
-    --sidebar-foreground: 0 0% 85%; /* Light gray for sidebar text #D9D9D9 */
+    --sidebar-background: 220 15% 8%; /* Even Darker Desaturated Blue #0F1114 */
+    --sidebar-foreground: 210 20% 85%; /* Light gray for sidebar text #D2D6DB */
     --sidebar-primary: 174 72% 56%; /* Teal for active/primary items */
-    --sidebar-primary-foreground: 0 0% 10%; /* Dark text on Teal */
-    --sidebar-accent: 0 0% 20%; /* Dark Gray for hover/accent backgrounds #333333 */
-    --sidebar-accent-foreground: 0 0% 95%; /* Light Gray for text on hover #F2F2F2 */
-    --sidebar-border: 0 0% 25%; /* Border color #404040 */
+    --sidebar-primary-foreground: 220 20% 10%; /* Dark text on Teal #14161C */
+    --sidebar-accent: 220 15% 20%; /* Desaturated Blue-Gray for hover/accent backgrounds #282C38 */
+    --sidebar-accent-foreground: 210 20% 95%; /* Light Gray for text on hover #EDF0F2 */
+    --sidebar-border: 220 15% 18%; /* Border color for sidebar elements #252833 */
     --sidebar-ring: 174 72% 56%; /* Teal for focus rings */
   }
 
-  /* Remove .dark specific overrides if :root is already dark-themed */
-  /* If you want to keep light/dark toggle, then the .dark class would have these values */
-  /* For this project, dark theme is default as per request */
 }
 
 @layer base {
