@@ -5,10 +5,12 @@ import { createContext, useContext, useMemo, useCallback } from 'react';
 import type { Recruiter } from '@/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
+import type { ScrapedRecruiter } from '@/ai/schemas/recruiter-schemas';
+
 
 interface RecruitersContextType {
   recruiters: Recruiter[];
-  addRecruiter: (recruiterData: Omit<Recruiter, 'id' | 'status' | 'lastContacted'>) => void;
+  addRecruiter: (recruiterData: Omit<Recruiter, 'id' | 'status' | 'lastContacted'> | ScrapedRecruiter) => void;
   updateRecruiter: (recruiter: Recruiter) => void;
   deleteRecruiter: (id: string) => void;
   getRecruiterById: (id: string) => Recruiter | undefined;
@@ -24,11 +26,12 @@ const initialRecruiters: Recruiter[] = [];
 export function RecruitersProvider({ children }: { children: React.ReactNode }) {
   const [recruiters, setRecruiters] = useLocalStorage<Recruiter[]>('recruiters', initialRecruiters);
 
-  const addRecruiter = useCallback((recruiterData: Omit<Recruiter, 'id' | 'status' | 'lastContacted'>) => {
+  const addRecruiter = useCallback((recruiterData: Omit<Recruiter, 'id' | 'status' | 'lastContacted'> | ScrapedRecruiter) => {
     const newRecruiter: Recruiter = {
-      ...recruiterData,
+      ...recruiterData, // Handles both types as ScrapedRecruiter is a subset of the Omit type
       id: uuidv4(),
       status: 'pending',
+      // lastContacted will be undefined initially
     };
     setRecruiters((prev) => [newRecruiter, ...prev]);
   }, [setRecruiters]);
@@ -79,3 +82,4 @@ export function useRecruiters() {
   }
   return context;
 }
+
