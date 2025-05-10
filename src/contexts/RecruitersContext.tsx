@@ -18,29 +18,7 @@ interface RecruitersContextType {
 
 const RecruitersContext = createContext<RecruitersContextType | undefined>(undefined);
 
-const initialRecruiters: Recruiter[] = [
-    {
-      id: uuidv4(),
-      companyName: "Tech Solutions Inc.",
-      recruiterName: "Alice Wonderland",
-      title: "Senior Talent Acquisition Specialist",
-      email: "alice.wonderland@techsolutions.example.com",
-      linkedInProfileUrl: "https://linkedin.com/in/alicewonderland",
-      status: "pending",
-      notes: "Focuses on AI and ML roles. Mentioned interest in proactive candidates on LinkedIn."
-    },
-    {
-      id: uuidv4(),
-      companyName: "Innovate Hub",
-      recruiterName: "Bob The Builder",
-      title: "Lead Recruiter",
-      email: "bob.builder@innovatehub.example.com",
-      status: "sent",
-      lastContacted: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-      personalizedEmailSubject: "Following up: Potential Fit at Innovate Hub",
-      personalizedEmailBody: "Hi Bob, Hope you're having a great week..."
-    },
-];
+const initialRecruiters: Recruiter[] = [];
 
 
 export function RecruitersProvider({ children }: { children: React.ReactNode }) {

@@ -39,14 +39,17 @@ export default function AnalyticsPage() {
   const totalRecruiters = recruiters.length;
   const emailsSent = getSentEmailsCount();
   const emailsReplied = getRepliedEmailsCount();
-  const emailsOpened = Math.floor(emailsSent * 0.455); // Mocked: 45.5% open rate
+  // Actual email open tracking is complex and typically requires external services or pixel tracking,
+  // which is beyond the scope of this example application.
+  // For now, we'll show 'N/A' or a placeholder message.
+  const emailsOpenedDisplay = "N/A (Tracking not implemented)"; 
   
   const conversionRate = emailsSent > 0 ? (emailsReplied / emailsSent) * 100 : 0;
 
   const stats = [
     { title: 'Total Recruiters Added', value: totalRecruiters, icon: Users },
     { title: 'Total Emails Sent', value: emailsSent, icon: Mail },
-    { title: 'Emails Opened (Est.)', value: emailsOpened, icon: TrendingUp },
+    { title: 'Emails Opened', value: emailsOpenedDisplay, icon: TrendingUp },
     { title: 'Emails Replied', value: emailsReplied, icon: CheckCircle },
     { title: 'Conversion Rate (Reply)', value: `${conversionRate.toFixed(1)}%`, icon: PieLucide },
   ];
@@ -55,7 +58,7 @@ export default function AnalyticsPage() {
     <>
       <PageHeader
         title="Email Campaign Analytics"
-        description="Track the performance of your outreach efforts. Some charts display illustrative data."
+        description="Track the performance of your outreach efforts. Charts will populate as you interact with recruiters."
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">

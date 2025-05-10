@@ -12,40 +12,18 @@ interface TemplatesContextType {
   getTemplateById: (id: string) => EmailTemplate | undefined;
   getDefaultTemplate: () => EmailTemplate | undefined;
   updateTemplate: (template: EmailTemplate) => void;
-  addTemplate: (templateData: Omit<EmailTemplate, 'id'>) => void;
+  addTemplate: (templateData: Omit<EmailTemplate, 'id' | 'isDefault'>, makeDefault?: boolean) => EmailTemplate;
   deleteTemplate: (id: string) => void;
   setUserSkills: (skills: string) => void;
+  setDefaultTemplate: (id: string) => void;
 }
 
 const TemplatesContext = createContext<TemplatesContextType | undefined>(undefined);
 
-const initialTemplates: EmailTemplate[] = [
-  {
-    id: 'default-cold-email',
-    name: 'Default Cold Email',
-    subject: 'Inquiry about opportunities at {company_name} - {your_name}',
-    body: `Dear {recruiter_name},
-
-I hope this email finds you well.
-
-My name is {your_name}, and I'm a [Your Current Role/Aspiration] with a strong background in {your_skills}. I've been following {company_name}'s work in [Specific Area/Industry] with great interest, particularly [Mention something specific about the company or their work].
-
-I am very impressed with your profile and your contributions at {company_name}. Given my experience in [Mention 1-2 key skills/experiences relevant to the company/recruiter], I believe I could bring significant value to your team.
-
-Would you be open to a brief 15-minute call next week to discuss how my skills and experiences might align with {company_name}'s goals or any suitable upcoming roles?
-
-Thank you for your time and consideration.
-
-Best regards,
-{your_name}
-[Your LinkedIn Profile URL (Optional)]
-[Your Portfolio/GitHub URL (Optional)]`,
-    isDefault: true,
-  },
-];
+const initialTemplates: EmailTemplate[] = [];
 
 const initialUserSkills: UserSkills = {
-  skills: 'React, Next.js, TypeScript, and AI integration',
+  skills: '',
 };
 
 export function TemplatesProvider({ children }: { children: React.ReactNode }) {
@@ -65,14 +43,44 @@ export function TemplatesProvider({ children }: { children: React.ReactNode }) {
       prev.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t))
     );
   }, [setTemplates]);
-
-  const addTemplate = useCallback((templateData: Omit<EmailTemplate, 'id'>) => {
-    const newTemplate: EmailTemplate = { ...templateData, id: uuidv4() };
-    setTemplates(prev => [newTemplate, ...prev]);
+  
+  const setDefaultTemplate = useCallback((id: string) => {
+    setTemplates(prev => 
+      prev.map(t => ({
+        ...t,
+        isDefault: t.id === id,
+      }))
+    );
   }, [setTemplates]);
 
+  const addTemplate = useCallback((templateData: Omit<EmailTemplate, 'id' | 'isDefault'>, makeDefault: boolean = false): EmailTemplate => {
+    const newTemplate: EmailTemplate = { 
+      ...templateData, 
+      id: uuidv4(),
+      isDefault: false // Initially false, will be set if makeDefault is true
+    };
+    
+    setTemplates(prev => {
+      let newTemplates = [...prev];
+      if (makeDefault || newTemplates.length === 0) {
+        newTemplates = newTemplates.map(t => ({ ...t, isDefault: false }));
+        newTemplate.isDefault = true;
+      }
+      return [newTemplate, ...newTemplates];
+    });
+    return newTemplate;
+  }, [setTemplates]);
+
+
   const deleteTemplate = useCallback((id: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== id));
+    setTemplates(prev => {
+      const remainingTemplates = prev.filter(t => t.id !== id);
+      // If the deleted template was default, and there are other templates, make the first one default
+      if (remainingTemplates.length > 0 && prev.find(t => t.id === id)?.isDefault) {
+        remainingTemplates[0].isDefault = true;
+      }
+      return remainingTemplates;
+    });
   }, [setTemplates]);
   
   const setUserSkills = useCallback((skills: string) => {
@@ -88,7 +96,8 @@ export function TemplatesProvider({ children }: { children: React.ReactNode }) {
     addTemplate,
     deleteTemplate,
     setUserSkills,
-  }), [templates, userSkills, getTemplateById, getDefaultTemplate, updateTemplate, addTemplate, deleteTemplate, setUserSkills]);
+    setDefaultTemplate,
+  }), [templates, userSkills, getTemplateById, getDefaultTemplate, updateTemplate, addTemplate, deleteTemplate, setUserSkills, setDefaultTemplate]);
 
   return (
     <TemplatesContext.Provider value={value}>

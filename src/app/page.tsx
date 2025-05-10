@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Users, MailPlus, LineChart, TrendingUp, ArrowRight } from 'lucide-react'; // Replaced FileText with TrendingUp for Reply Rate for variety
+import { Users, MailPlus, LineChart, TrendingUp, ArrowRight, FileText } from 'lucide-react';
 import { useRecruiters } from '@/contexts/RecruitersContext';
 
 export default function DashboardPage() {
@@ -12,22 +12,22 @@ export default function DashboardPage() {
 
   const totalRecruiters = recruiters.length;
   const emailsSent = getSentEmailsCount();
-  // Open rate is an estimation as actual tracking is complex
-  const openRate = emailsSent > 0 ? 45.5 : 0; 
+  // Actual email open tracking is complex and not implemented.
+  const openRateDisplay = "N/A"; 
   const replyRate = emailsSent > 0 ? (getRepliedEmailsCount() / emailsSent) * 100 : 0;
 
 
   const stats = [
     { title: 'Total Recruiters', value: totalRecruiters.toString(), icon: Users },
     { title: 'Emails Sent', value: emailsSent.toString(), icon: MailPlus },
-    { title: 'Open Rate (Est.)', value: `${openRate.toFixed(1)}%`, icon: TrendingUp }, // Changed icon for visual difference
-    { title: 'Reply Rate', value: `${replyRate.toFixed(1)}%`, icon: LineChart }, // Changed icon for visual difference
+    { title: 'Open Rate', value: openRateDisplay, icon: TrendingUp, description: "Tracking not implemented" },
+    { title: 'Reply Rate', value: `${replyRate.toFixed(1)}%`, icon: LineChart },
   ];
 
   const quickActions = [
     { title: 'Add New Recruiter', href: '/recruits/add', icon: Users, description: 'Input new recruiter details.' },
     { title: 'View All Recruits', href: '/recruits', icon: Users, description: 'Review and manage your list.' },
-    { title: 'Manage Templates', href: '/templates', icon: MailPlus, description: 'Edit your email templates.' }, // Changed icon to MailPlus as it's related to emails
+    { title: 'Manage Templates', href: '/templates', icon: FileText, description: 'Edit your email templates.' },
     { title: 'View Analytics', href: '/analytics', icon: LineChart, description: 'Track your campaign performance.' },
   ];
 
@@ -45,10 +45,11 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="h-5 w-5 text-accent" /> {/* Consistent icon color */}
+              <stat.icon className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+              {stat.description && <p className="text-xs text-muted-foreground">{stat.description}</p>}
             </CardContent>
           </Card>
         ))}
@@ -78,18 +79,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
-      
-      {/* Placeholder for recent activity or other dashboard elements */}
-      {/*
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl text-foreground">Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No recent activity to display.</p>
-        </CardContent>
-      </Card>
-      */}
     </>
   );
 }
