@@ -11,14 +11,14 @@ import {
   SidebarContent, 
   SidebarFooter, 
   SidebarSeparator,
-  SidebarTrigger // Added SidebarTrigger
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import AppSidebarNav from '@/components/layout/sidebar-nav';
 import { ThemeProvider } from '@/components/theme-provider';
 import Link from 'next/link';
 import { AppProviders } from './providers'; 
 import { siteConfig } from '@/config/site';
-import { cn } from '@/lib/utils'; // Added for conditional classnames
+import { cn } from '@/lib/utils';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   title: 'CyberConnect AI',
   description: 'AI-powered recruiter outreach and email personalization.',
   icons: {
-    icon: '/favicon.ico', // Example, ensure favicon exists or remove/update
+    icon: '/favicon.ico',
   }, 
 };
 
@@ -54,21 +54,24 @@ export default function RootLayout({
         >
           <AppProviders> 
             <SidebarProvider defaultOpen={true}>
-              <Sidebar collapsible="icon"> {/* Set sidebar to collapse to icons */}
-                <SidebarHeader className="p-4">
-                  <Link href="/" className="flex items-center gap-2">
-                    <svg width="32" height="32" viewBox="0 0 100 100" fill="hsl(var(--accent))" xmlns="http://www.w3.org/2000/svg" className="text-accent">
+              <Sidebar collapsible="icon">
+                <SidebarHeader className="p-4 flex items-center justify-between">
+                  <Link href="/" className="flex items-center gap-2 overflow-hidden">
+                    <svg width="32" height="32" viewBox="0 0 100 100" fill="hsl(var(--accent))" xmlns="http://www.w3.org/2000/svg" className="text-accent flex-shrink-0">
                       <path d="M50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90V80C33.4315 80 20 66.5685 20 50C20 33.4315 33.4315 20 50 20C66.5685 20 80 33.4315 80 50H90C90 27.9086 72.0914 10 50 10ZM50 30C38.9543 30 30 38.9543 30 50C30 61.0457 38.9543 70 50 70C61.0457 70 70 61.0457 70 50C70 38.9543 61.0457 30 50 30ZM55 45V55H45V45H55Z" />
                       <circle cx="50" cy="50" r="7" fill="hsl(var(--background))"/>
                     </svg>
-                    {/* Title hides when sidebar is collapsed on non-mobile screens */}
                     <h1 className={cn(
-                        "text-xl font-semibold text-foreground",
-                        "group-data-[state=collapsed]:hidden" // Uses parent group state
+                        "text-xl font-semibold text-foreground whitespace-nowrap",
+                        "group-data-[state=collapsed]:hidden" 
                       )}>
                         CyberConnect AI
                       </h1>
                   </Link>
+                  {/* Desktop sidebar toggle button - inside the sidebar header */}
+                  <div className="hidden md:flex"> {/* Visible on medium screens and up */}
+                    <SidebarTrigger />
+                  </div>
                 </SidebarHeader>
                 <SidebarContent className="flex-grow">
                   <AppSidebarNav items={siteConfig.mainNav} />
@@ -76,16 +79,19 @@ export default function RootLayout({
                 {siteConfig.secondaryNav && siteConfig.secondaryNav.length > 0 && (
                   <>
                     <SidebarSeparator className="my-2"/>
-                    <SidebarFooter className="p-2"> {/* Reduced padding for footer items */}
+                    <SidebarFooter className="p-2">
                       <AppSidebarNav items={siteConfig.secondaryNav} />
                     </SidebarFooter>
                   </>
                 )}
               </Sidebar>
-              <SidebarInset> {/* This is a <main> tag, and flex flex-col */}
-                {/* Header for the main content area, includes the SidebarTrigger */}
+              <SidebarInset>
+                {/* Header for the main content area */}
                 <div className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-10 shrink-0">
-                  <SidebarTrigger />
+                  {/* Mobile sidebar (sheet) toggle button - in the main content header */}
+                  <div className="md:hidden"> {/* Visible only on small screens (mobile) */}
+                    <SidebarTrigger />
+                  </div>
                   {/* You can add other header elements here, like breadcrumbs or a global search bar */}
                 </div>
                 {/* Scrollable content area */}
@@ -100,3 +106,4 @@ export default function RootLayout({
       </body>
     </html>
   );
+}
