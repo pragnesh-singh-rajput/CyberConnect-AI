@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -9,24 +10,13 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { 
+  PersonalizeEmailInputSchema, 
+  PersonalizeEmailOutputSchema,
+  type PersonalizeEmailInput, // type export is fine
+  type PersonalizeEmailOutput // type export is fine
+} from '@/ai/schemas/recruiter-schemas';
 
-const PersonalizeEmailInputSchema = z.object({
-  recruiterProfile: z
-    .string()
-    .describe('The recruiter profile information to personalize the email. This includes name, title, company, and any notes.'),
-  yourSkills: z
-    .string()
-    .describe('Your skills and experiences to include in the email.'),
-  template: z.string().describe('The base email template content (subject and body) to use as a starting point for personalization. The AI should refer to this template but generate its own personalized version. Expected format: "Subject: <subject_line>\\n\\n<email_body>"'),
-});
-export type PersonalizeEmailInput = z.infer<typeof PersonalizeEmailInputSchema>;
-
-const PersonalizeEmailOutputSchema = z.object({
-  subject: z.string().describe('The personalized email subject line.'),
-  body: z.string().describe('The personalized email body content.'),
-});
-export type PersonalizeEmailOutput = z.infer<typeof PersonalizeEmailOutputSchema>;
 
 export async function personalizeEmail(input: PersonalizeEmailInput): Promise<PersonalizeEmailOutput> {
   return personalizeEmailFlow(input);
@@ -112,3 +102,6 @@ const personalizeEmailFlow = ai.defineFlow(
     return output;
   }
 );
+
+// Re-export types if they are needed by consumers of this flow file.
+export type { PersonalizeEmailInput, PersonalizeEmailOutput };

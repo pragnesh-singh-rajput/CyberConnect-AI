@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to simulate scraping recruiter data.
@@ -8,36 +9,19 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-// Define a schema for the data returned by the scraper, matching Omit<Recruiter, 'id' | 'status' | 'lastContacted'>
-const ScrapedRecruiterSchema = z.object({
-  recruiterName: z.string().describe('The name of the recruiter.'),
-  companyName: z.string().describe('The company the recruiter works for.'),
-  title: z.string().describe('The recruiter\'s title.'),
-  email: z.string().email().describe('The recruiter\'s email address.'),
-  linkedInProfileUrl: z.string().url().optional().describe('The URL of the recruiter\'s LinkedIn profile.'),
-  notes: z.string().optional().describe('Additional notes or profile information about the recruiter.'),
-});
-export type ScrapedRecruiter = z.infer<typeof ScrapedRecruiterSchema>;
-
-
-export const ScrapeRecruitersInputSchema = z.object({
-  query: z.string().describe('The search query for recruiters (e.g., "Tech Recruiters at Google").'),
-});
-export type ScrapeRecruitersInput = z.infer<typeof ScrapeRecruitersInputSchema>;
-
-export const ScrapeRecruitersOutputSchema = z.object({
-  scrapedRecruiters: z.array(ScrapedRecruiterSchema).describe('A list of recruiters found based on the query.'),
-});
-export type ScrapeRecruitersOutput = z.infer<typeof ScrapeRecruitersOutputSchema>;
+import {
+  ScrapeRecruitersInputSchema,
+  ScrapeRecruitersOutputSchema,
+  type ScrapedRecruiter, // type export is fine
+  type ScrapeRecruitersInput, // type export is fine
+  type ScrapeRecruitersOutput // type export is fine
+} from '@/ai/schemas/recruiter-schemas';
 
 
 export async function scrapeRecruiters(input: ScrapeRecruitersInput): Promise<ScrapeRecruitersOutput> {
   return scrapeRecruitersFlow(input);
 }
 
-// This flow is a placeholder. Actual web scraping is complex and has ethical/legal considerations.
 const scrapeRecruitersFlow = ai.defineFlow(
   {
     name: 'scrapeRecruitersFlow',
@@ -46,46 +30,57 @@ const scrapeRecruitersFlow = ai.defineFlow(
   },
   async (input) => {
     console.warn(
-      `Scraping for query: "${input.query}". This is a placeholder implementation. Actual scraping logic is needed.`
+      `Scraping for query: "${input.query}" from source: "${input.source}" (max results: ${input.maxResults}). This is a placeholder implementation. Actual scraping logic is needed.`
     );
-    console.warn(
-      "Web scraping LinkedIn programmatically is against their Terms of Service and can lead to account suspension."
-    )
+    
+    let statusMessage = "Scraping simulation initiated. ";
 
-    // Simulate finding a few recruiters.
-    // In a real scenario, this would involve complex web scraping logic using tools like Puppeteer/Playwright on a backend.
-    const dummyRecruiters: ScrapedRecruiter[] = [
-      {
-        recruiterName: 'Alice Wonderland (Scraped)',
-        companyName: input.query.includes('Google') ? 'Google' : 'Tech Solutions Inc.',
-        title: 'Senior Tech Recruiter',
-        email: 'alice.scraped@example.com',
-        linkedInProfileUrl: 'https://linkedin.com/in/alicescraped',
-        notes: `Scraped based on query: ${input.query}. Experienced in AI and ML hiring. (Simulated Data)`,
-      },
-      {
-        recruiterName: 'Bob The Builder (Scraped)',
-        companyName: input.query.includes('Microsoft') ? 'Microsoft' : 'Innovatech Ltd.',
-        title: 'Recruiting Manager',
-        email: 'bob.scraped@example.com',
-        linkedInProfileUrl: 'https://linkedin.com/in/bobscraped',
-        notes: `Found via query: ${input.query}. Focuses on cloud engineering roles. (Simulated Data)`,
-      },
-      {
-        recruiterName: 'Carol Danvers (Scraped)',
-        companyName: input.query.includes('Amazon') ? 'Amazon' : 'Global Connect',
-        title: 'Talent Acquisition Specialist',
-        email: 'carol.scraped@example.com',
-        linkedInProfileUrl: 'https://linkedin.com/in/carolscraped',
-        notes: `Relevant to query: ${input.query}. Specializes in software development. (Simulated Data)`,
-      }
-    ];
+    if (input.source === 'linkedin') {
+        statusMessage += "Note: Scraping LinkedIn programmatically is against their Terms of Service. This simulation will not actually access LinkedIn. ";
+        console.warn(
+            "Web scraping LinkedIn programmatically is against their Terms ofService and can lead to account suspension."
+        );
+    }
 
+    // Simulate finding a few recruiters based on the query parameters.
+    // In a real scenario, this would involve complex web scraping logic.
+    const dummyRecruiters: ScrapedRecruiter[] = [];
+    const numToGenerate = Math.min(input.maxResults ?? 3, 5); // Limit dummy data generation
+
+    for (let i = 0; i < numToGenerate; i++) {
+        let companyName = "General Tech Corp";
+        if (input.query.toLowerCase().includes("google")) companyName = "Google (Simulated)";
+        else if (input.query.toLowerCase().includes("microsoft")) companyName = "Microsoft (Simulated)";
+        else if (input.query.toLowerCase().includes("amazon")) companyName = "Amazon (Simulated)";
+        else if (input.companyName) companyName = `${input.companyName} (Simulated)`;
+
+
+        dummyRecruiters.push({
+            recruiterName: `Dummy Recruiter ${i + 1}`,
+            companyName: companyName,
+            title: `Tech Recruiter ${i + 1}`,
+            email: `dummy.recruiter${i + 1}@${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.example.com`,
+            linkedInProfileUrl: `https://linkedin.com/in/dummyrecruiter${i + 1}`,
+            notes: `Simulated data for query: "${input.query}". Source: ${input.source}. Found by placeholder scraper.`,
+        });
+    }
+    
     // Simulate some delay as scraping would take time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1500));
+
+    if (dummyRecruiters.length > 0) {
+        statusMessage += `Successfully simulated finding ${dummyRecruiters.length} recruiters.`;
+    } else {
+        statusMessage += "Simulated scraping did not find any recruiters for your query.";
+    }
 
     return {
       scrapedRecruiters: dummyRecruiters,
+      statusMessage: statusMessage,
     };
   }
 );
+
+// Re-export types if they are needed by consumers of this flow file.
+// These are type exports, which are fine with 'use server'.
+export type { ScrapeRecruitersInput, ScrapeRecruitersOutput, ScrapedRecruiter };

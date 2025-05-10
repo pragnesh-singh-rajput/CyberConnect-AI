@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -15,7 +16,7 @@ import { useApiUsage } from '@/contexts/ApiUsageContext';
 import { scrapeRecruiters, type ScrapeRecruitersInput } from '@/ai/flows/scrape-recruiters-flow';
 
 
-export default function RecruitsPage() {
+export default function RecruitersPage() {
   const [isScraping, setIsScraping] = useState(false);
   const { toast } = useToast();
   const { recruiters, updateRecruiter, addRecruiter } = useRecruiters();
@@ -26,7 +27,7 @@ export default function RecruitsPage() {
 
 
   const handleStartScraping = async () => {
-    const query = window.prompt("Enter your search query for recruiters (e.g., 'Tech Recruiters at Google'):");
+    const query = window.prompt("Enter your search query for recruiters (e.g., 'Tech Recruiters at Google', or a LinkedIn search URL):");
     if (!query || query.trim() === "") {
       toast({
         title: "Scraping Cancelled",
@@ -36,16 +37,23 @@ export default function RecruitsPage() {
       return;
     }
 
+    let source: ScrapeRecruitersInput['source'] = 'general_web';
+    const sourcePrompt = window.prompt("Enter data source (linkedin, company_site, general_web - default is general_web):")?.toLowerCase();
+    if (sourcePrompt === 'linkedin' || sourcePrompt === 'company_site' || sourcePrompt === 'general_web') {
+        source = sourcePrompt as ScrapeRecruitersInput['source'];
+    }
+
+
     setIsScraping(true);
     toast({
       title: "Scraping Started (Simulation)",
-      description: `Searching for recruiters matching: "${query}". This is a simulation and will return dummy data. Actual scraping of sites like LinkedIn is against their ToS.`,
+      description: `Searching for recruiters matching: "${query}" from source: "${source}". This is a simulation and will return dummy data. Actual scraping of sites like LinkedIn is against their ToS.`,
       variant: "default",
       duration: 7000,
     });
 
     try {
-      const input: ScrapeRecruitersInput = { query };
+      const input: ScrapeRecruitersInput = { query, source, maxResults: 5 };
       const result = await scrapeRecruiters(input);
 
       if (result && result.scrapedRecruiters && result.scrapedRecruiters.length > 0) {
@@ -54,13 +62,13 @@ export default function RecruitsPage() {
         });
         toast({
           title: "Scraping Complete (Simulated)",
-          description: `${result.scrapedRecruiters.length} potential recruiters (dummy data) added.`,
+          description: `${result.scrapedRecruiters.length} potential recruiters (dummy data) added. ${result.statusMessage}`,
           variant: "default",
         });
       } else {
         toast({
           title: "No Recruiters Found (Simulated)",
-          description: "The simulated scraping did not find any recruiters for your query.",
+          description: result.statusMessage || "The simulated scraping did not find any recruiters for your query.",
           variant: "default",
         });
       }
@@ -140,3 +148,4 @@ export default function RecruitsPage() {
     </>
   );
 }
+
