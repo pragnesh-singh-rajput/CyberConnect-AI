@@ -57,15 +57,9 @@ export default function RootLayout({
               <Sidebar collapsible="icon" className="group">
                 <SidebarHeader className={cn(
                   "p-4 flex items-center",
-                  "group-data-[state=expanded]:gap-3", // Adjust gap for when expanded
+                  "group-data-[state=expanded]:justify-between group-data-[state=expanded]:gap-3", 
                   "group-data-[state=collapsed]:flex-col group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:gap-4"
                 )}>
-                  {/* Desktop sidebar toggle button - MOVED TO THE LEFT for expanded state */}
-                  <div className="hidden md:flex">
-                    <SidebarTrigger>
-                        <Menu />
-                    </SidebarTrigger>
-                  </div>
                   <Link href="/" className="flex items-center gap-2 overflow-hidden group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:w-full">
                     <svg width="32" height="32" viewBox="0 0 100 100" fill="hsl(var(--accent))" xmlns="http://www.w3.org/2000/svg" className="text-accent flex-shrink-0">
                       <path d="M50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90V80C33.4315 80 20 66.5685 20 50C20 33.4315 33.4315 20 50 20C66.5685 20 80 33.4315 80 50H90C90 27.9086 72.0914 10 50 10ZM50 30C38.9543 30 30 38.9543 30 50C30 61.0457 38.9543 70 50 70C61.0457 70 70 61.0457 70 50C70 38.9543 61.0457 30 50 30ZM55 45V55H45V45H55Z" />
@@ -78,8 +72,14 @@ export default function RootLayout({
                         CyberConnect AI
                       </h1>
                   </Link>
+                   {/* Desktop sidebar toggle button */}
+                  <div className="hidden md:flex">
+                    <SidebarTrigger>
+                        <Menu />
+                    </SidebarTrigger>
+                  </div>
                 </SidebarHeader>
-                <SidebarContent className="flex-grow group-data-[state=collapsed]:items-center group-data-[state=collapsed]:justify-center">
+                <SidebarContent className="flex-grow group-data-[state=collapsed]:items-center group-data-[state=collapsed]:justify-start">
                   <AppSidebarNav items={siteConfig.mainNav} />
                 </SidebarContent>
                 {siteConfig.secondaryNav && siteConfig.secondaryNav.length > 0 && (
