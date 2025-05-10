@@ -5,10 +5,23 @@ import { URL } from 'url';
 import type { ScrapedRecruiter, ScrapeRecruitersInput, ScrapeRecruitersOutput } from '@/ai/schemas/recruiter-schemas';
 
 // Constants for limiting pages, results, and setting request timeouts
-const MAX_PAGES_TO_VISIT_COMPANY_CRAWL = 5; // Max pages for company site crawl
-const MAX_RESULTS_PER_PAGE_EXTRACTION = 10; // Max recruiters to extract from a single page
-const MAX_GOOGLE_RESULTS_TO_PROCESS = 5; // Max Google search results to process for 'general_web' keyword search
+const MAX_PAGES_TO_VISIT_COMPANY_CRAWL = 3; // Max pages for company site crawl (reduced for broader search)
+const MAX_RESULTS_PER_PAGE_EXTRACTION = 5; // Max recruiters to extract from a single page
+const MAX_GOOGLE_RESULTS_PER_SITE_SEARCH = 3; // Max Google search results to process per target site
 const REQUEST_TIMEOUT = 10000; // 10 seconds
+
+const TARGET_SITES_CONFIG = [
+  { name: "LinkedIn", domain: "linkedin.com", noteSuffix: "via LinkedIn (Public Search)" },
+  { name: "Indeed", domain: "indeed.com", noteSuffix: "via Indeed Job Search" },
+  { name: "Glassdoor", domain: "glassdoor.com", noteSuffix: "via Glassdoor Search" },
+  { name: "ZipRecruiter", domain: "ziprecruiter.com", noteSuffix: "via ZipRecruiter Search" },
+  { name: "Monster", domain: "monster.com", noteSuffix: "via Monster Job Search" },
+  { name: "CareerBuilder", domain: "careerbuilder.com", noteSuffix: "via CareerBuilder Search" },
+  { name: "FlexJobs", domain: "flexjobs.com", noteSuffix: "via FlexJobs Search" },
+  { name: "Torre.ai", domain: "torre.ai", noteSuffix: "via Torre.ai Search" },
+  { name: "OptimHire", domain: "optimhire.com", noteSuffix: "via OptimHire Search" },
+  { name: "HelloSky", domain: "hellosky.com", noteSuffix: "via HelloSky Search" },
+];
 
 // Utility function to extract emails from text
 function extractEmails(text: string): string[] {
@@ -78,12 +91,11 @@ async function fetchPageContent(url: string): Promise<string | null> {
 }
 
 // Extract recruiter info from a single page's HTML content
-function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, companyNameQuery: string): ScrapedRecruiter[] {
+function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, companyNameQuery: string, sourceSiteNote?: string): ScrapedRecruiter[] {
   const $ = cheerioLoad(htmlContent);
   const recruiters: ScrapedRecruiter[] = [];
   const potentialRecruitersText = new Set<string>();
 
-  // Try to find a more relevant company name from the page title or meta tags if companyNameQuery is generic
   let pageSpecificCompanyName = companyNameQuery;
   const titleCompanyNameMatch = $('title').text().match(/([\w\s-]+ Careers|Jobs at [\w\s-]+|[\w\s-]+ Talent)/i);
   if (titleCompanyNameMatch && titleCompanyNameMatch[1]) {
@@ -96,11 +108,10 @@ function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, comp
   $('body').find('*').each((_, element) => {
     const $el = $(element);
     const textContent = $el.text().replace(/\s\s+/g, ' ').trim();
-    // Enhanced keywords, looking for common recruiter titles
     const recruiterKeywords = /\b(recruiter|talent acquisition|sourcer|hiring manager|technical recruiter|hr business partner|people operations|staffing|head of talent|talent partner|recruitment specialist|talent lead)\b/i;
 
-    if (recruiterKeywords.test(textContent) && textContent.length < 500) { // Keep context length reasonable
-      const uniqueTextKey = textContent.substring(0, 100); // Key for deduplication
+    if (recruiterKeywords.test(textContent) && textContent.length < 500) { 
+      const uniqueTextKey = textContent.substring(0, 100); 
       if (potentialRecruitersText.has(uniqueTextKey)) return;
       potentialRecruitersText.add(uniqueTextKey);
 
@@ -115,31 +126,27 @@ function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, comp
       });
 
       let recruiterName = "Unknown";
-      let title = "Recruiter"; // Default title
+      let title = "Recruiter"; 
 
-      // Try to parse Name - Title patterns
       const nameTitleMatch = textContent.match(/^([a-zA-Z\s.'-]+(?:[a-zA-Z]\.?){0,2})\s*[,-–—|]\s*([a-zA-Z\s&()]+)/i);
       if (nameTitleMatch && nameTitleMatch[1] && nameTitleMatch[2]) {
         recruiterName = nameTitleMatch[1].trim();
         title = nameTitleMatch[2].trim();
-        // Further clean title if it contains the name
         if (title.toLowerCase().startsWith(recruiterName.toLowerCase())) {
             title = title.substring(recruiterName.length).replace(/^[\s,-]+/, '').trim();
         }
       } else {
-        // Fallback: try to find name near keyword
         const keywordMatch = textContent.match(recruiterKeywords);
         if (keywordMatch && keywordMatch.index && keywordMatch.index > 0) {
             const textBeforeKeyword = textContent.substring(0, keywordMatch.index).trim();
             const potentialNameSegments = textBeforeKeyword.split(/\s+/);
-            // Take last 2-3 words as potential name
             const potentialName = potentialNameSegments.slice(-3).join(' '); 
             if (potentialName.length > 3 && potentialName.length < 50 && /^[a-zA-Z\s.'-]+$/.test(potentialName)) {
                 recruiterName = potentialName;
             }
         }
          const titleMatch = textContent.match(recruiterKeywords);
-        if (titleMatch && title.toLowerCase() === "recruiter") { // Only update title if it's still the default
+        if (titleMatch && title.toLowerCase() === "recruiter") { 
             const titlePhraseMatch = textContent.substring(titleMatch.index).match(/^([a-zA-Z\s&()]+(\s(lead|manager|specialist|partner))?)/i);
             if (titlePhraseMatch && titlePhraseMatch[0].length < 70) {
                 title = titlePhraseMatch[0].trim();
@@ -150,13 +157,17 @@ function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, comp
       }
       
       if (recruiterName === "Unknown" && linkedInProfiles.size > 0) {
-        // Try to derive name from LinkedIn URL
         const liUrl = Array.from(linkedInProfiles)[0];
         const liPath = new URL(liUrl).pathname;
         const nameFromLi = liPath.split('/in/')[1]?.split('/')[0]?.replace(/-/g, ' ');
         if (nameFromLi) {
           recruiterName = nameFromLi.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
         }
+      }
+
+      let notes = `Found on: ${pageUrl}. Context: ${textContent.substring(0, 150)}...`;
+      if (sourceSiteNote) {
+        notes = `Found ${sourceSiteNote} via ${pageUrl}. Context: ${textContent.substring(0, 120)}...`;
       }
 
 
@@ -167,7 +178,7 @@ function extractRecruiterInfoFromPage(htmlContent: string, pageUrl: string, comp
           title,
           email: emails[0] || 'N/A',
           linkedInProfileUrl: linkedInProfiles.size > 0 ? Array.from(linkedInProfiles)[0] : undefined,
-          notes: `Found on: ${pageUrl}. Context: ${textContent.substring(0, 150)}...`, // Increased context
+          notes,
         });
       }
     }
@@ -200,9 +211,8 @@ async function crawlCompanySite(companyUrl: string, companyName: string, maxDept
 
     const htmlContent = await fetchPageContent(currentUrl);
     if (htmlContent) {
-      const foundRecruiters = extractRecruiterInfoFromPage(htmlContent, currentUrl, companyName);
+      const foundRecruiters = extractRecruiterInfoFromPage(htmlContent, currentUrl, companyName, `on ${baseHostname}`);
       allRecruiters.push(...foundRecruiters);
-      // Deduplicate recruiters based on email or LinkedIn URL
       allRecruiters = Array.from(new Map(allRecruiters.map(r => [(r.email && r.email !== 'N/A' ? r.email : r.linkedInProfileUrl) || Math.random().toString(), r])).values());
 
 
@@ -212,12 +222,11 @@ async function crawlCompanySite(companyUrl: string, companyName: string, maxDept
           const link = $(element).attr('href');
           if (link) {
             const nextUrl = normalizeUrl(link, currentUrl);
-            // Stay on the same domain, ensure not visited, and prioritize relevant keywords
             if (nextUrl && new URL(nextUrl).hostname === baseHostname && !visited.has(nextUrl)) {
               if (/\b(career|job|contact|team|about|people|recruitment|talent|staff)\b/i.test(nextUrl.toLowerCase())) {
                 visited.add(nextUrl);
-                queue.unshift({ url: nextUrl, depth: depth + 1 }); // Prioritize relevant links
-              } else if (queue.length < MAX_PAGES_TO_VISIT_COMPANY_CRAWL * 3) { // Limit queue size for general links
+                queue.unshift({ url: nextUrl, depth: depth + 1 }); 
+              } else if (queue.length < MAX_PAGES_TO_VISIT_COMPANY_CRAWL * 3) { 
                  visited.add(nextUrl);
                  queue.push({ url: nextUrl, depth: depth + 1 });
               }
@@ -231,8 +240,8 @@ async function crawlCompanySite(companyUrl: string, companyName: string, maxDept
 }
 
 // Function to extract links from a Google search results page
-async function extractLinksFromGoogleSearch(searchQuery: string): Promise<string[]> {
-  const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&num=10&hl=en`; // Get 10 results, force English
+async function extractLinksFromGoogleSearch(searchQuery: string, maxLinks: number = MAX_GOOGLE_RESULTS_PER_SITE_SEARCH): Promise<string[]> {
+  const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&num=${maxLinks + 2}&hl=en`; // Get a bit more to filter
   console.log(`Performing Google search: ${googleSearchUrl}`);
   const htmlContent = await fetchPageContent(googleSearchUrl);
   if (!htmlContent) {
@@ -243,135 +252,138 @@ async function extractLinksFromGoogleSearch(searchQuery: string): Promise<string
   const $ = cheerioLoad(htmlContent);
   const links: string[] = [];
   
-  // Google's structure for search results can change. This targets common patterns.
-  // Look for <a> tags that have an <h3> inside, or specific data attributes.
   $('a[href]').each((_, element) => {
     const $a = $(element);
     const href = $a.attr('href');
     
-    if (href && href.startsWith('/url?q=')) { // Standard Google redirect URL
+    if (href && href.startsWith('/url?q=')) { 
       const actualUrl = new URLSearchParams(href.substring(href.indexOf('?') + 1)).get('q');
-      if (actualUrl && isValidUrl(actualUrl) && !actualUrl.includes("google.com/search")) { // Ensure it's a valid, non-Google search link
+      if (actualUrl && isValidUrl(actualUrl) && !actualUrl.includes("google.com/search")) { 
         const SITEDOMAINS_TO_FILTER = ['support.google.com', 'maps.google.com', 'policies.google.com', 'accounts.google.com'];
         if(!SITEDOMAINS_TO_FILTER.some(domain => actualUrl.includes(domain))) {
             links.push(actualUrl);
         }
       }
     } else if (href && $a.find('h3').length > 0 && isValidUrl(href) && !href.includes("google.com")) {
-        // Direct links (less common now but good to check)
         links.push(href);
     }
   });
   
   const uniqueLinks = Array.from(new Set(links));
-  console.log(`Found ${uniqueLinks.length} potential links from Google search.`);
-  return uniqueLinks.slice(0, MAX_GOOGLE_RESULTS_TO_PROCESS); // Process a limited number of results
+  console.log(`Found ${uniqueLinks.length} potential links from Google search for: "${searchQuery}"`);
+  return uniqueLinks.slice(0, maxLinks);
 }
 
 
-// Main scraping function that handles multiple sources
+// Main scraping function
 export async function scrapeRecruiters(input: ScrapeRecruitersInput): Promise<ScrapeRecruitersOutput> {
-  const { query, source, maxResults = 5 } = input;
+  const { query, maxResults = 10 } = input; // Default maxResults if not provided
   let recruiters: ScrapedRecruiter[] = [];
-  let statusMessage = "";
+  let statusMessages: string[] = [];
 
   if (!query || query.trim() === "") {
     return { scrapedRecruiters: [], statusMessage: "Scraping Cancelled: No Search Query provided." };
   }
 
   try {
-    if (source === 'linkedin') {
-      if (query.includes("linkedin.com/in/") || query.includes("linkedin.com/company/")) {
-         const htmlContent = await fetchPageContent(query);
-         if(htmlContent){
-            let companyNameGuess = "LinkedIn Source"; // Default
-            const urlObj = new URL(query);
-            if (query.includes("linkedin.com/company/")) {
-                const pathParts = urlObj.pathname.split('/');
-                if (pathParts.length > 2 && pathParts[1] === 'company') {
-                    companyNameGuess = pathParts[2].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                }
-            } else if (query.includes("linkedin.com/in/")) {
-                 // For individual profiles, company name might be harder to guess without more context
-                 // extractRecruiterInfoFromPage will try to find it within the page.
-                 companyNameGuess = "LinkedIn Profile"; 
+    if (isValidUrl(query)) {
+      // Direct URL processing
+      statusMessages.push(`Query is a URL: ${query}. Attempting direct processing.`);
+      const htmlContent = await fetchPageContent(query);
+      if (htmlContent) {
+        let companyNameFromUrl = "Web Page";
+        let sourceNote = "on Web Page";
+        try { 
+          const hostname = new URL(query).hostname;
+          companyNameFromUrl = hostname.replace(/^www\./, '').split('.')[0];
+          companyNameFromUrl = companyNameFromUrl.charAt(0).toUpperCase() + companyNameFromUrl.slice(1);
+          sourceNote = `on ${hostname}`;
+        } catch {}
+        
+        if (query.includes("linkedin.com/in/") || query.includes("linkedin.com/company/")) {
+            sourceNote = "on LinkedIn Page";
+            recruiters = extractRecruiterInfoFromPage(htmlContent, query, companyNameFromUrl, sourceNote);
+        } else {
+            // Attempt to crawl if it seems like a company site, otherwise just extract from the single page
+            if (query.match(/career|jobs|about|contact/i) || !query.match(/\.\w{2,4}\//)) { // Basic check if it might be a company site
+                 recruiters = await crawlCompanySite(query, companyNameFromUrl);
+            } else {
+                 recruiters = extractRecruiterInfoFromPage(htmlContent, query, companyNameFromUrl, sourceNote);
             }
-            recruiters = extractRecruiterInfoFromPage(htmlContent, query, companyNameGuess);
-            statusMessage = `Successfully extracted ${recruiters.length} potential recruiter(s) from the LinkedIn page: ${query}.`;
-         } else {
-            statusMessage = `Failed to fetch LinkedIn page: ${query}. The page might be private, require login, or block scraping.`;
-         }
+        }
+        statusMessages.push(`Scraped direct URL ${query}, found ${recruiters.length} recruiters.`);
       } else {
-        statusMessage = "For LinkedIn source, please provide a direct LinkedIn profile or company URL (e.g., linkedin.com/in/name or linkedin.com/company/name).";
-      }
-    } else if (source === 'company_site') {
-      let companyTargetUrl = query;
-      // Attempt to derive company name from URL if it's a URL, otherwise use query as name.
-      let derivedCompanyName = query;
-      if (isValidUrl(query)) {
-        companyTargetUrl = query;
-        try {
-          const urlParts = new URL(query).hostname.split('.');
-          derivedCompanyName = urlParts.length > 1 ? urlParts[urlParts.length - 2] : urlParts[0];
-          derivedCompanyName = derivedCompanyName.charAt(0).toUpperCase() + derivedCompanyName.slice(1);
-        } catch { /* keep original query as company name */ }
-      } else { // Assume query is company name, try to make it a URL
-         companyTargetUrl = `https://www.${query.toLowerCase().replace(/\s+/g, '')}.com/careers`; // Guess common career page
-         // Fallback if that doesn't work
-         // This will be handled by fetchPageContent failing or crawlCompanySite if it's not a valid starting point.
-      }
-      
-      recruiters = await crawlCompanySite(companyTargetUrl, derivedCompanyName);
-      statusMessage = `Found ${recruiters.length} potential recruiters from company site search for: ${query}.`;
-    } else if (source === 'general_web') {
-      if (isValidUrl(query)) { // Direct URL scraping
-        const htmlContent = await fetchPageContent(query);
-        if (htmlContent) {
-          // Try to get company name from domain for notes, but it's a generic scrape.
-          let companyNameFromUrl = "Web Page";
-          try { companyNameFromUrl = new URL(query).hostname; } catch {}
-          recruiters = extractRecruiterInfoFromPage(htmlContent, query, companyNameFromUrl);
-          statusMessage = `Scraped direct URL ${query}, found ${recruiters.length} recruiters.`;
-        } else {
-          statusMessage = `Failed to fetch content from URL: ${query}.`;
-        }
-      } else { // Keyword search using Google
-        const links = await extractLinksFromGoogleSearch(query + " recruiter OR \"talent acquisition\" OR \"hiring manager\" contact OR email");
-        if (links.length === 0) {
-          statusMessage = `No relevant links found via Google search for keywords: "${query}". Try refining your search or using a direct URL.`;
-        } else {
-          statusMessage = `Found ${links.length} potential pages from Google for "${query}". Processing...`;
-          let processedLinks = 0;
-          for (const link of links) {
-            if (recruiters.length >= maxResults) break;
-            console.log(`Processing Google search result: ${link}`);
-            const htmlContent = await fetchPageContent(link);
-            if (htmlContent) {
-              // Try to derive company name from link domain for better context
-              let companyNameGuess = query; // Fallback to original query
-              try {
-                const domain = new URL(link).hostname.replace(/^www\./, '').split('.')[0];
-                companyNameGuess = domain.charAt(0).toUpperCase() + domain.slice(1);
-              } catch {}
-
-              const foundOnPage = extractRecruiterInfoFromPage(htmlContent, link, companyNameGuess);
-              recruiters.push(...foundOnPage);
-              // Deduplicate
-              recruiters = Array.from(new Map(recruiters.map(r => [(r.email && r.email !== 'N/A' ? r.email : r.linkedInProfileUrl) || Math.random().toString(), r])).values());
-
-            }
-            processedLinks++;
-          }
-           statusMessage = `Processed ${processedLinks} pages from Google search for "${query}". Found ${recruiters.length} total potential recruiters.`;
-        }
+        statusMessages.push(`Failed to fetch content from URL: ${query}.`);
       }
     } else {
-      statusMessage = "Invalid source provided. Use 'linkedin', 'company_site', or 'general_web'.";
+      // Keyword search across predefined sites + general Google search
+      statusMessages.push(`Query is keywords: "${query}". Searching across predefined sites and general web.`);
+      
+      // 1. General Google Search for the keywords
+      const generalSearchKeywords = `${query} recruiter OR "talent acquisition" OR "hiring manager" contact OR email`;
+      const generalLinks = await extractLinksFromGoogleSearch(generalSearchKeywords, 5); // Get 5 general links
+      
+      let processedGeneralLinks = 0;
+      for (const link of generalLinks) {
+        if (recruiters.length >= maxResults) break;
+        console.log(`Processing general Google search result: ${link}`);
+        const htmlContent = await fetchPageContent(link);
+        if (htmlContent) {
+          let companyNameGuess = query; 
+          try {
+            const domain = new URL(link).hostname.replace(/^www\./, '').split('.')[0];
+            companyNameGuess = domain.charAt(0).toUpperCase() + domain.slice(1);
+          } catch {}
+          const foundOnPage = extractRecruiterInfoFromPage(htmlContent, link, companyNameGuess, "via General Web Search");
+          recruiters.push(...foundOnPage);
+          recruiters = Array.from(new Map(recruiters.map(r => [(r.email && r.email !== 'N/A' ? r.email : r.linkedInProfileUrl) || Math.random().toString(), r])).values());
+        }
+        processedGeneralLinks++;
+      }
+      if (generalLinks.length > 0) {
+        statusMessages.push(`Processed ${processedGeneralLinks} general Google search results. Current total: ${recruiters.length} recruiters.`);
+      } else {
+        statusMessages.push(`No general Google search results found for "${generalSearchKeywords}".`);
+      }
+
+
+      // 2. Iterate through TARGET_SITES_CONFIG for site-specific Google searches
+      for (const siteConfig of TARGET_SITES_CONFIG) {
+        if (recruiters.length >= maxResults) break;
+        const siteSearchQuery = `site:${siteConfig.domain} ${query} recruiter OR "talent acquisition"`;
+        console.log(`Searching on ${siteConfig.name}: ${siteSearchQuery}`);
+        const siteLinks = await extractLinksFromGoogleSearch(siteSearchQuery, MAX_GOOGLE_RESULTS_PER_SITE_SEARCH);
+        
+        let processedSiteLinks = 0;
+        for (const link of siteLinks) {
+          if (recruiters.length >= maxResults) break;
+          console.log(`Processing ${siteConfig.name} result: ${link}`);
+          const htmlContent = await fetchPageContent(link);
+          if (htmlContent) {
+            let companyNameGuess = siteConfig.name.split('.')[0]; // Default to site name
+            try { // Try to get a more specific company name if possible from the link
+                const linkDomain = new URL(link).hostname.replace(/^www\./, '');
+                if (!linkDomain.startsWith(siteConfig.domain.replace(/^www\./, ''))) { // If the link is to a company on indeed, glassdoor etc.
+                    companyNameGuess = linkDomain.split('.')[0];
+                }
+            } catch {}
+
+            const foundOnPage = extractRecruiterInfoFromPage(htmlContent, link, companyNameGuess, siteConfig.noteSuffix);
+            recruiters.push(...foundOnPage);
+            recruiters = Array.from(new Map(recruiters.map(r => [(r.email && r.email !== 'N/A' ? r.email : r.linkedInProfileUrl) || Math.random().toString(), r])).values());
+          }
+          processedSiteLinks++;
+        }
+        if (siteLinks.length > 0) {
+            statusMessages.push(`Processed ${processedSiteLinks} links for ${siteConfig.name}. Current total: ${recruiters.length} recruiters.`);
+        }
+      }
     }
 
+    const finalStatusMessage = statusMessages.join(' | ') || "Scraping process completed.";
     return {
       scrapedRecruiters: recruiters.slice(0, maxResults),
-      statusMessage: statusMessage || "Scraping process completed.",
+      statusMessage: `Found ${recruiters.length} potential recruiters. ${finalStatusMessage}`,
     };
 
   } catch (error) {

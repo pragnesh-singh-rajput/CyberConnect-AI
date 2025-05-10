@@ -1,4 +1,3 @@
-
 import { z } from 'genkit';
 
 // Define a schema for the data returned by the scraper, matching Omit<Recruiter, 'id' | 'status' | 'lastContacted'>
@@ -14,9 +13,8 @@ export type ScrapedRecruiter = z.infer<typeof ScrapedRecruiterSchema>;
 
 
 export const ScrapeRecruitersInputSchema = z.object({
-  query: z.string().describe('The search query. For "linkedin", provide a direct LinkedIn URL. For "company_site", provide a company name or website URL. For "general_web", provide a keyword/search term or a direct URL to scrape.'),
-  source: z.enum(['linkedin', 'general_web', 'company_site']).default('general_web').describe('The primary source to target for scraping. "linkedin" for specific LinkedIn URLs, "company_site" to crawl a company website, "general_web" for keyword searches (uses Google) or direct URL scraping.'),
-  maxResults: z.number().int().positive().optional().default(5).describe('Maximum number of distinct recruiters to attempt to return.'),
+  query: z.string().describe('The search query. Can be a direct URL (company site, LinkedIn profile) or keywords to search across predefined websites.'),
+  maxResults: z.number().int().positive().optional().default(10).describe('Maximum number of distinct recruiters to attempt to return in total.'),
 });
 export type ScrapeRecruitersInput = z.infer<typeof ScrapeRecruitersInputSchema>;
 

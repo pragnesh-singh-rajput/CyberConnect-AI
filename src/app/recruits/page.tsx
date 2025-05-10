@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -31,47 +30,23 @@ export default function RecruitersPage() {
     if (!scrapeQuery || scrapeQuery.trim() === "") {
       toast({
         title: "Scraping Query Required",
-        description: "Please enter a search query or URL to start scraping.",
+        description: "Please enter a search query (keywords or URL) to start scraping.",
         variant: "destructive",
         duration: 5000,
       });
       return;
     }
 
-    let source: ScrapeRecruitersInput['source'] = 'company_site'; 
-    const sourcePromptMessage = "Enter data source:\n" +
-    "- 'linkedin' (for direct profile URLs, e.g., https://linkedin.com/in/name)\n" +
-    "- 'company_site' (company name like 'Google' or website URL like https://careers.google.com - DEFAULT)\n" +
-    "- 'general_web' (search term like 'AI recruiters NYC' for a Google link, or specific webpage URL for direct scraping)\n" +
-    "Enter choice (leave blank for default 'company_site'):";
-    
-    let userInputSource: string | null = null;
-    if (typeof window !== 'undefined') {
-      userInputSource = window.prompt(sourcePromptMessage)?.trim().toLowerCase();
-    }
-
-
-    if (userInputSource === 'linkedin' || userInputSource === 'company_site' || userInputSource === 'general_web') {
-        source = userInputSource as ScrapeRecruitersInput['source'];
-    } else if (userInputSource && userInputSource !== "") { 
-        toast({
-            title: "Invalid Source",
-            description: `Source "${userInputSource}" is not valid. Using default '${source}'.`,
-            variant: "default"
-        });
-    } 
-
-
     setIsScraping(true);
     toast({
       title: "Scraping Started",
-      description: `Searching for recruiters matching: "${scrapeQuery}" from source: "${source}". This may take a few moments.`,
+      description: `Searching for recruiters based on: "${scrapeQuery}". This may take some time as we search across multiple sources.`,
       variant: "default",
-      duration: 7000,
+      duration: 10000, // Increased duration for potentially longer process
     });
 
     try {
-      const input: ScrapeRecruitersInput = { query: scrapeQuery, source, maxResults: 5 };
+      const input: ScrapeRecruitersInput = { query: scrapeQuery, maxResults: 10 }; // Increased maxResults slightly
       const result = await scrapeRecruiters(input);
       
       let newRecruitersCount = 0;
@@ -87,34 +62,17 @@ export default function RecruitersPage() {
           }
         });
         
-        if (newRecruitersCount > 0) {
-            toast({
-                title: "Scraping Complete",
-                description: `${newRecruitersCount} new potential recruiters added. Total found by scraper: ${result.scrapedRecruiters.length}. ${result.statusMessage}`,
-                variant: "default",
-                duration: 7000,
-            });
-        } else if (result.scrapedRecruiters.length > 0) {
-             toast({
-                title: "Scraping Complete",
-                description: `Scraper found ${result.scrapedRecruiters.length} potential recruiters, but they may already exist in your list. ${result.statusMessage}`,
-                variant: "default",
-                duration: 7000,
-            });
-        }
-         else { 
-            toast({
-                title: "No Recruiters Found by Scraper",
-                description: result.statusMessage || "The scraping process did not find any recruiters for your query.",
-                variant: "default",
-                duration: 7000,
-            });
-        }
+        toast({
+            title: "Scraping Complete",
+            description: `${newRecruitersCount} new potential recruiters added. Total found by scraper: ${result.scrapedRecruiters.length}. ${result.statusMessage}`,
+            variant: "default",
+            duration: 10000,
+        });
 
       } else { 
         toast({
-          title: "No Recruiters Found by Scraper",
-          description: result.statusMessage || "The scraping process did not find any recruiters for your query.",
+          title: "No New Recruiters Found",
+          description: result.statusMessage || "The scraping process did not find any new recruiters for your query, or they may already be in your list.",
           variant: "default",
           duration: 7000,
         });
@@ -124,7 +82,7 @@ export default function RecruitersPage() {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
         title: "Scraping Error",
-        description: `An error occurred: ${errorMessage}. Please check the console for more details or try a different query/source.`,
+        description: `An error occurred: ${errorMessage}. Please check the console for more details or try a different query.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -181,29 +139,38 @@ export default function RecruitersPage() {
         title="Recruiters"
         description="Manage your list of recruiters and their outreach status."
       />
-      <div className="flex flex-col sm:flex-row gap-2 mb-6 w-full items-center">
-        <Input
-          type="text"
-          placeholder="Enter company name, URL, LinkedIn profile, or keywords..."
-          value={scrapeQuery}
-          onChange={(e) => setScrapeQuery(e.target.value)}
-          className="w-full sm:flex-1 sm:min-w-[300px]"
-          aria-label="Scraping query input"
-        />
-        <Button onClick={handleStartScraping} disabled={isScraping} variant="outline" className="w-full sm:w-auto">
-          {isScraping ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Search className="mr-2 h-4 w-4" />
-          )}
-          {isScraping ? 'Scraping...' : 'Start Scraping'}
-        </Button>
-        <Button asChild variant="default" className="w-full sm:w-auto">
-          <Link href="/recruits/add">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Recruiter
-          </Link>
-        </Button>
+      <div className="mb-6 p-6 border rounded-lg shadow bg-card">
+        <label htmlFor="scrapeQueryInput" className="block text-sm font-medium text-card-foreground mb-1">
+          Scraping Query
+        </label>
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <Input
+            id="scrapeQueryInput"
+            type="text"
+            placeholder="Enter keywords (e.g., 'AI Engineer London') or a direct URL..."
+            value={scrapeQuery}
+            onChange={(e) => setScrapeQuery(e.target.value)}
+            className="w-full sm:flex-1 sm:min-w-[300px]"
+            aria-label="Scraping query input"
+          />
+          <Button onClick={handleStartScraping} disabled={isScraping} variant="outline" className="w-full sm:w-auto">
+            {isScraping ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 h-4 w-4" />
+            )}
+            {isScraping ? 'Scraping...' : 'Start Scraping'}
+          </Button>
+          <Button asChild variant="default" className="w-full sm:w-auto">
+            <Link href="/recruits/add">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add New Recruiter
+            </Link>
+          </Button>
+        </div>
+         <p className="text-xs text-muted-foreground mt-2">
+            The scraper will search Google and target sites like LinkedIn, Indeed, Glassdoor, etc. Results may vary.
+        </p>
       </div>
       <RecruitersTable onAction={handleOpenPersonalizeDialog} actionIcon={Send} actionLabel="Personalize & Send" />
       {selectedRecruiterForEmail && (
@@ -220,4 +187,3 @@ export default function RecruitersPage() {
     </>
   );
 }
-
