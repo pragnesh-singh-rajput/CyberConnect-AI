@@ -1,127 +1,111 @@
-'use server';
-/**
- * @fileOverview A flow to attempt scraping recruiter data from general web sources.
- *
- * - scrapeRecruiters - A function that attempts to scrape recruiter data based on a query.
- * - ScrapeRecruitersInput - The input type for the scrapeRecruiters function.
- * - ScrapeRecruitersOutput - The return type for the scrapeRecruiters function.
- */
+import fetch from 'node-fetch';
+import { load as cheerioLoad } from 'cheerio';
+import { URL } from 'url';
+import { ScrapedRecruiter, ScrapeRecruitersInput, ScrapeRecruitersOutput } from '@/ai/schemas/recruiter-schemas';
 
-import {ai} from '@/ai/genkit';
-import {
-  ScrapeRecruitersInputSchema,
-  ScrapeRecruitersOutputSchema,
-  type ScrapedRecruiter,
-  type ScrapeRecruitersInput,
-  type ScrapeRecruitersOutput
-} from '@/ai/schemas/recruiter-schemas';
+const MAX_PAGES = 30;
+const CRAWL_DEPTH = 2;
 
-// Helper function to check if a string is a valid URL
-function isValidUrl(string: string): boolean {
+function extractEmails(text: string): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  return [...new Set(text.match(emailRegex) || [])];
+}
+
+function isInternalLink(link: string, baseUrl: string): boolean {
   try {
-    new URL(string);
-    return true;
-  } catch (_) {
+    const url = new URL(link, baseUrl);
+    return url.hostname === new URL(baseUrl).hostname;
+  } catch {
     return false;
   }
 }
 
-export async function scrapeRecruiters(input: ScrapeRecruitersInput): Promise<ScrapeRecruitersOutput> {
-  return scrapeRecruitersFlow(input);
+async function fetchAndExtract(url: string, baseUrl: string): Promise<{ recruiters: ScrapedRecruiter[], links: string[] }> {
+  const recruiters: ScrapedRecruiter[] = [];
+  const links: string[] = [];
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+
+    const html = await response.text();
+    const $ = cheerioLoad(html);
+
+    // Look for recruiter-type patterns
+    $('*').each((_, el) => {
+      const text = $(el).text();
+      const match = /recruiter|talent|HR|hiring/i.test(text);
+
+      if (match) {
+        const email = extractEmails(text)[0] || 'unknown@example.com';
+        const linkedin = $(el).find('a[href*="linkedin.com"]').attr('href');
+        recruiters.push({
+          recruiterName: text.substring(0, 100),
+          companyName: 'Unknown',
+          title: 'Recruiter-like Title',
+          email,
+          linkedInProfileUrl: linkedin,
+          notes: `Detected recruiter info from: ${url}`
+        });
+      }
+    });
+
+    $('a[href]').each((_, el) => {
+      const link = $(el).attr('href');
+      if (link && isInternalLink(link, baseUrl)) {
+        links.push(new URL(link, baseUrl).href);
+      }
+    });
+
+  } catch (err) {
+    console.warn(`Failed to fetch ${url}: ${err}`);
+  }
+
+  return { recruiters, links };
 }
 
-const scrapeRecruitersFlow = ai.defineFlow(
-  {
-    name: 'scrapeRecruitersFlow',
-    inputSchema: ScrapeRecruitersInputSchema,
-    outputSchema: ScrapeRecruitersOutputSchema,
-  },
-  async (input): Promise<ScrapeRecruitersOutput> => {
-    console.log(
-      `Attempting to scrape for query: "${input.query}" from source: "${input.source}" (max results: ${input.maxResults}).`
-    );
-    
-    let statusMessage = `Scraping process initiated for query: "${input.query}". `;
-    const scrapedRecruiters: ScrapedRecruiter[] = [];
+async function deepCrawl(startUrl: string, maxDepth: number, maxPages: number): Promise<ScrapedRecruiter[]> {
+  const visited = new Set<string>();
+  const queue: { url: string; depth: number }[] = [{ url: startUrl, depth: 0 }];
+  const recruiters: ScrapedRecruiter[] = [];
 
-    if (input.source === 'linkedin') {
-      statusMessage += "Scraping LinkedIn programmatically is against their Terms of Service and is not implemented. Please use LinkedIn's official tools or manual search. ";
-      console.warn(
-          "Web scraping LinkedIn programmatically is against their Terms of Service and can lead to account suspension. This flow will not attempt to scrape LinkedIn."
-      );
-      return {
-        scrapedRecruiters: [],
-        statusMessage: statusMessage + "No data retrieved from LinkedIn.",
-      };
-    }
+  while (queue.length > 0 && visited.size < maxPages) {
+    const { url, depth } = queue.shift()!;
+    if (visited.has(url) || depth > maxDepth) continue;
 
-    // For 'company_site' or 'general_web', if the query is a URL
-    if ((input.source === 'company_site' || input.source === 'general_web') && isValidUrl(input.query)) {
-      const targetUrl = input.query;
-      statusMessage += `Attempting to fetch content from URL: ${targetUrl}. `;
-      try {
-        const response = await fetch(targetUrl, {
-          headers: {
-            // Attempt to mimic a browser to avoid simple blocks
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-          }
-        });
+    visited.add(url);
+    const { recruiters: found, links } = await fetchAndExtract(url, startUrl);
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${targetUrl}: ${response.status} ${response.statusText}`);
-        }
+    recruiters.push(...found);
 
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('text/html')) {
-            statusMessage += `Received non-HTML content from ${targetUrl}. Cannot process for recruiter data. Content-Type: ${contentType}. `;
-            return { scrapedRecruiters, statusMessage };
-        }
-        
-        const htmlContent = await response.text();
-        
-        // Placeholder for actual HTML parsing and data extraction
-        // In a real application, you would use a library like Cheerio (server-side) or DOMParser (client-side if applicable)
-        // to parse htmlContent and extract recruiterName, companyName, title, email, etc.
-        // This is a highly complex task and varies greatly between websites.
-        
-        const snippet = htmlContent.substring(0, 200).replace(/\s+/g, ' ') + "...";
-
-        // Create a single placeholder ScrapedRecruiter entry
-        // Max results will effectively be 1 for this basic fetch
-        if (scrapedRecruiters.length < (input.maxResults ?? 1)) {
-            scrapedRecruiters.push({
-                recruiterName: `Data from ${targetUrl}`,
-                companyName: input.companyName || "Unknown (parsing required)",
-                title: "Unknown (parsing required)",
-                email: "unknown@example.com (parsing required)", // Placeholder email
-                linkedInProfileUrl: targetUrl.includes('linkedin.com') ? targetUrl : undefined,
-                notes: `Successfully fetched content from ${targetUrl}. Further parsing of HTML content is required to extract specific recruiter details. Raw content snippet (first 200 chars): "${snippet}"`,
-            });
-        }
-        
-        statusMessage += `Successfully fetched content from ${targetUrl}. ${scrapedRecruiters.length} placeholder entry created. Manual parsing and data extraction from the fetched HTML is the next step. `;
-
-      } catch (error: any) {
-        console.error(`Error fetching URL ${targetUrl}:`, error);
-        statusMessage += `Error fetching or processing ${targetUrl}: ${error.message}. `;
+    for (const link of links) {
+      if (!visited.has(link)) {
+        queue.push({ url: link, depth: depth + 1 });
       }
-    } else if (input.source === 'company_site' || input.source === 'general_web') {
-        statusMessage += `The query "${input.query}" is not a valid URL or the source requires a URL for this basic fetch. Provide a direct URL to a company's career/team page or a specific recruiter profile page for this functionality. Advanced search query processing is not implemented.`;
     }
+  }
 
+  return recruiters;
+}
 
-    if (scrapedRecruiters.length === 0 && !(input.source === 'linkedin')) {
-         statusMessage += "No recruiter data could be automatically extracted with the current basic capabilities. ";
-    }
-
+// Main export
+export async function scrapeRecruiters(input: ScrapeRecruitersInput): Promise<ScrapeRecruitersOutput> {
+  if (!input.query || !input.query.startsWith('http')) {
     return {
-      scrapedRecruiters,
-      statusMessage,
+      scrapedRecruiters: [],
+      statusMessage: 'Please provide a valid URL to crawl.'
     };
   }
-);
 
-// Re-export types if they are needed by consumers of this flow file.
-export type { ScrapeRecruitersInput, ScrapeRecruitersOutput, ScrapedRecruiter };
+  const recruiters = await deepCrawl(input.query, CRAWL_DEPTH, MAX_PAGES);
+  return {
+    scrapedRecruiters: recruiters.slice(0, input.maxResults ?? 10),
+    statusMessage: `Scraping completed. Found ${recruiters.length} recruiter-like profiles.`
+  };
+}
