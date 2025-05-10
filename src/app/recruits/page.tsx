@@ -1,38 +1,63 @@
+
 'use client';
 
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Search, Loader2 } from 'lucide-react';
 import { RecruitersTable } from '@/components/recruits/recruits-table';
-import { RecruitersProvider } from '@/contexts/RecruitersContext';
-import { TemplatesProvider } from '@/contexts/TemplatesContext';
-
+import React, { useState } from 'react'; // Import React and useState
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 export default function RecruitsPage() {
+  const [isScraping, setIsScraping] = useState(false);
+  const { toast } = useToast();
+
+  const handleStartScraping = () => {
+    setIsScraping(true);
+    toast({
+      title: 'Scraping Started (Simulated)',
+      description: 'The system is now looking for new recruiter data online. This may take a moment.',
+      variant: 'default',
+    });
+
+    // Simulate scraping process
+    setTimeout(() => {
+      setIsScraping(false);
+      toast({
+        title: 'Scraping Complete (Simulated)',
+        description: 'Finished searching for new recruiters. (No actual data added in this simulation).',
+        variant: 'default',
+      });
+      // In a real application, you might refresh the recruiters list here or show new data.
+    }, 5000); // Simulate 5 seconds of scraping
+  };
+
   return (
-    // Wrap with Providers here if they are not in a higher layout component for this specific page tree
-    // For this app, Providers are in RootLayout, so they are not strictly needed here again.
-    // However, if this page was part of a route group without the main layout, you'd add them.
-    // For current structure, this is fine.
-    // <RecruitersProvider>
-    //   <TemplatesProvider>
-        <>
-          <PageHeader
-            title="Recruits"
-            description="Manage your list of recruiters and their outreach status."
-            actions={
-              <Button asChild variant="default">
-                <Link href="/recruits/add">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add New Recruiter
-                </Link>
-              </Button>
-            }
-          />
-          <RecruitersTable />
-        </>
-    //   </TemplatesProvider>
-    // </RecruitersProvider>
+    <>
+      <PageHeader
+        title="Recruiters"
+        description="Manage your list of recruiters and their outreach status."
+        actions={
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleStartScraping} disabled={isScraping} variant="outline">
+              {isScraping ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              {isScraping ? 'Scraping...' : 'Start Scraping'}
+            </Button>
+            <Button asChild variant="default">
+              <Link href="/recruits/add">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Recruiter
+              </Link>
+            </Button>
+          </div>
+        }
+      />
+      <RecruitersTable />
+    </>
   );
 }
