@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -13,12 +12,13 @@ import { useTemplates } from '@/contexts/TemplatesContext';
 import type { Recruiter } from '@/types';
 import { PersonalizeEmailDialog } from '@/components/recruits/personalize-email-dialog';
 import { useApiUsage } from '@/contexts/ApiUsageContext';
+import { scrapeRecruiters, type ScrapeRecruitersInput } from '@/ai/flows/scrape-recruiters-flow';
 
 
 export default function RecruitsPage() {
   const [isScraping, setIsScraping] = useState(false);
   const { toast } = useToast();
-  const { recruiters, updateRecruiter } = useRecruiters();
+  const { recruiters, updateRecruiter, addRecruiter } = useRecruiters();
   const { templates, userSkills, setUserSkills: updateGlobalUserSkills } = useTemplates();
   const [selectedRecruiterForEmail, setSelectedRecruiterForEmail] = React.useState<Recruiter | null>(null);
   const [isPersonalizeDialogOpen, setIsPersonalizeDialogOpen] = React.useState(false);
@@ -26,27 +26,54 @@ export default function RecruitsPage() {
 
 
   const handleStartScraping = async () => {
+    const query = window.prompt("Enter your search query for recruiters (e.g., 'Tech Recruiters at Google'):");
+    if (!query || query.trim() === "") {
+      toast({
+        title: "Scraping Cancelled",
+        description: "No search query provided.",
+        variant: "default",
+      });
+      return;
+    }
+
     setIsScraping(true);
-    
-    // DEVELOPER NOTE:
-    // Actual web scraping logic should be implemented here.
-    // This function is currently a placeholder.
-    // Scraping external websites like LinkedIn can be complex, may violate
-    // their Terms of Service, and has legal/ethical implications.
-    // Consider using a dedicated backend service for robust and compliant scraping.
-    
-    console.warn("Web scraping logic needs to be implemented in `handleStartScraping` in RecruitsPage.");
-    
     toast({
-      title: "Scraping Feature Placeholder",
-      description: "The 'Start Scraping' functionality requires custom implementation for actual data gathering. This button currently serves as a placeholder.",
-      variant: "default", 
-      duration: 7000, 
+      title: "Scraping Started (Simulation)",
+      description: `Searching for recruiters matching: "${query}". This is a simulation and will return dummy data. Actual scraping of sites like LinkedIn is against their ToS.`,
+      variant: "default",
+      duration: 7000,
     });
-  
-    // Reset the button state. In a real implementation with a background task,
-    // this might be handled differently (e.g., upon completion or error of the scraping task).
-    setIsScraping(false); 
+
+    try {
+      const input: ScrapeRecruitersInput = { query };
+      const result = await scrapeRecruiters(input);
+
+      if (result && result.scrapedRecruiters && result.scrapedRecruiters.length > 0) {
+        result.scrapedRecruiters.forEach(recruiterData => {
+          addRecruiter(recruiterData);
+        });
+        toast({
+          title: "Scraping Complete (Simulated)",
+          description: `${result.scrapedRecruiters.length} potential recruiters (dummy data) added.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "No Recruiters Found (Simulated)",
+          description: "The simulated scraping did not find any recruiters for your query.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error during scraping simulation:", error);
+      toast({
+        title: "Scraping Error (Simulated)",
+        description: "An error occurred during the simulated scraping process. Please check the console.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScraping(false);
+    }
   };
 
   const handleOpenPersonalizeDialog = useCallback((recruiter: Recruiter) => {
@@ -87,7 +114,7 @@ export default function RecruitsPage() {
               ) : (
                 <Search className="mr-2 h-4 w-4" />
               )}
-              {isScraping ? 'Scraping...' : 'Start Scraping'}
+              {isScraping ? 'Scraping...' : 'Start Scraping (Simulated)'}
             </Button>
             <Button asChild variant="default">
               <Link href="/recruits/add">
@@ -113,4 +140,3 @@ export default function RecruitsPage() {
     </>
   );
 }
-
