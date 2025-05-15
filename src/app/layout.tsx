@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   }, 
+  // Add theme-color for better PWA integration and branding
+  themeColor: '#13151A', // Matches --background HSL for dark theme
 };
 
 export default function RootLayout({
