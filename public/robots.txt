@@ -1,0 +1,11 @@
+# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+#
+# Allow all crawlers access to all content.
+User-agent: *
+Allow: /
+
+# Disallow crawling of Next.js specific build artifacts and API routes (example)
+Disallow: /_next/
+Disallow: /api/
+
+Sitemap: /sitemap.xml
